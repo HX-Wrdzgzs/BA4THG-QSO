@@ -4,25 +4,50 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
-  <meta name="theme-color" content="#f5f5f2">
+  <meta name="theme-color" content="#f6f7f8">
   <title>BA4THG · QSO Admin</title>
   <link rel="icon" type="image/svg+xml" href="./assets/ba4thg-mark.svg">
   <link rel="stylesheet" href="./styles.css">
   <script src="./admin.js" defer></script>
 </head>
-<body>
+<body class="admin-page">
 <header class="site-header">
-  <a class="brand" href="./"><img src="./assets/ba4thg-mark.svg" alt=""><span><strong>BA4THG</strong><small>QSO ADMIN</small></span></a>
-  <nav><a href="./">通联日志</a><a class="current" href="./admin.html">录入后台</a></nav>
+  <div class="header-inner">
+    <a class="brand" href="./" aria-label="返回公开通联日志">
+      <img src="./assets/ba4thg-mark.svg" alt="">
+      <span><strong>BA4THG</strong><small>QSO ADMIN</small></span>
+    </a>
+    <nav aria-label="主导航">
+      <a href="./">通联日志</a>
+      <a class="current" href="./admin.html">管理</a>
+    </nav>
+  </div>
 </header>
-<main>
-  <section class="hero admin-hero"><p class="eyebrow">PRIVATE MANAGEMENT CONSOLE</p><h1>QSO 档案管理</h1><p>管理令牌只保存在当前浏览器会话。正式使用时建议再用 Cloudflare Access 保护本页面和管理 API。</p></section>
 
-  <section class="auth panel"><label><span>ADMIN_API_TOKEN</span><input type="password" data-token autocomplete="off" placeholder="输入 Cloudflare Secret 中配置的令牌"></label><button class="primary" type="button" data-connect>连接档案库</button><span data-connection>尚未连接</span></section>
+<main>
+  <section class="page-heading">
+    <h1>QSO 档案管理</h1>
+    <p>录入、导入、同步和备份共用同一套长期 D1 档案。管理令牌只保存在当前浏览器会话。</p>
+  </section>
+
+  <section class="auth panel" aria-label="管理认证">
+    <label>
+      <span>ADMIN_API_TOKEN</span>
+      <input type="password" data-token autocomplete="off" placeholder="输入 Cloudflare Secret 中配置的令牌">
+    </label>
+    <button class="primary" type="button" data-connect>连接档案库</button>
+    <span data-connection>尚未连接</span>
+  </section>
 
   <div class="admin-grid">
     <section class="panel">
-      <div class="section-head compact"><div><p class="index">01 / ENTRY</p><h2>录入 QSO</h2></div><button class="link-button" type="button" data-reset>清空</button></div>
+      <div class="panel-heading">
+        <div>
+          <h2>录入 QSO</h2>
+          <p>手工补录和修改会成为本站本地权威记录。</p>
+        </div>
+        <button class="link-button" type="button" data-reset>清空</button>
+      </div>
       <form class="entry-grid" data-entry-form>
         <input type="hidden" name="id">
         <label><span>本台呼号</span><input name="myCallsign" value="BA4THG" maxlength="16" required></label>
@@ -46,15 +71,49 @@
       <p class="status" data-operation></p>
     </section>
 
-    <aside class="tools">
-      <section class="panel tool"><p class="index">02 / IMPORT</p><h2>历史记录导入</h2><p>支持 ADIF、CSV 和 JSON。浏览器解析后分批写入 D1。</p><input type="file" accept=".adi,.adif,.csv,.json,text/plain,application/json" data-import-file><button class="secondary" type="button" data-import>导入文件</button><p class="status" data-import-state></p></section>
-      <section class="panel tool"><p class="index">03 / SYNC</p><h2>同步小程序 API</h2><p>由当前浏览器携带真实 Origin 访问 api.mzyyun.com，再把近一年公开记录归档到 D1。上游不再返回的旧记录不会删除。</p><button class="secondary" type="button" data-sync>立即同步</button><p class="status" data-sync-state></p></section>
-      <section class="panel tool"><p class="index">04 / BACKUP</p><h2>导出备份</h2><p>建议同时保存 JSON 与 ADIF 到 Cloudflare 账户之外。</p><div class="button-row"><button class="secondary" type="button" data-export="json">导出 JSON</button><button class="secondary" type="button" data-export="adif">导出 ADIF</button></div></section>
+    <aside class="tools" aria-label="档案工具">
+      <section class="panel tool">
+        <h2>历史导入</h2>
+        <p>支持 ADIF、CSV 和 JSON。重复记录会按来源和通联指纹去重。</p>
+        <input type="file" accept=".adi,.adif,.csv,.json,text/plain,application/json" data-import-file>
+        <button class="secondary" type="button" data-import>导入文件</button>
+        <p class="status" data-import-state></p>
+      </section>
+
+      <section class="panel tool">
+        <h2>同步小程序 API</h2>
+        <p>浏览器携带当前网站 Origin 访问 api.mzyyun.com，再把近一年公开记录归档到 D1。历史记录不会因上游消失而删除。</p>
+        <button class="secondary" type="button" data-sync>立即同步</button>
+        <p class="status" data-sync-state></p>
+      </section>
+
+      <section class="panel tool">
+        <h2>导出备份</h2>
+        <p>建议同时保存 JSON 和 ADIF，并在 Cloudflare 账户之外保留至少一份。</p>
+        <div class="button-row">
+          <button class="secondary" type="button" data-export="json">导出 JSON</button>
+          <button class="secondary" type="button" data-export="adif">导出 ADIF</button>
+        </div>
+      </section>
     </aside>
   </div>
 
-  <section class="panel results"><div class="section-head compact"><div><p class="index">05 / RECORDS</p><h2>最近记录</h2></div><button class="link-button" type="button" data-refresh>刷新</button></div><div class="notice error" data-admin-error hidden></div><div class="qso-list" data-admin-list></div></section>
+  <section class="panel results">
+    <div class="panel-heading result-heading">
+      <div>
+        <h2>最近记录</h2>
+        <p>用于快速检查刚录入、导入或同步的档案。</p>
+      </div>
+      <button class="link-button" type="button" data-refresh>刷新</button>
+    </div>
+    <div class="notice error" data-admin-error hidden></div>
+    <div class="qso-list" data-admin-list></div>
+  </section>
 </main>
-<footer><p><strong>BA4THG</strong> · Private QSO Console</p><p>不要把管理令牌写入仓库、网页源码或截图。</p></footer>
+
+<footer>
+  <p><strong>BA4THG</strong> · Private QSO Console</p>
+  <p>不要把管理令牌写入仓库、网页源码或截图。</p>
+</footer>
 </body>
 </html>
