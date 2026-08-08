@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="BA4THG 长期公开 QSO 通联档案。">
+  <meta name="description" content="BA4THG 通联记录查询。">
   <meta name="theme-color" content="#f7f8fa">
   <title>BA4THG · 通联日志</title>
   <link rel="icon" type="image/svg+xml" href="./assets/ba4thg-mark.svg">
-  <link rel="stylesheet" href="./styles.css?v=20260808-6">
-  <script src="./app.js?v=20260808-6" defer></script>
+  <link rel="stylesheet" href="./styles.css?v=20260808-7">
+  <script src="./app.js?v=20260808-7" defer></script>
 </head>
 <body class="public-page">
 <header class="site-header">
@@ -19,7 +19,6 @@
     </a>
     <nav aria-label="主导航">
       <a class="current" href="./">通联日志</a>
-      <a href="./admin.html">档案管理</a>
     </nav>
   </div>
 </header>
@@ -30,7 +29,7 @@
       <h1>BA4THG</h1>
       <p>中国江苏南京 · 业余无线电台</p>
     </div>
-    <p class="station-note">这里用于查询与 BA4THG 的公开通联记录。页面不会默认展示通联列表。</p>
+    <p class="station-note">查询与 BA4THG 的公开通联记录。</p>
   </section>
 
   <section class="search-section" aria-labelledby="search-title">
@@ -40,7 +39,7 @@
       <input id="qso-search" name="q" autocomplete="off" spellcheck="false" maxlength="16" placeholder="输入呼号" required>
       <button class="primary" type="submit">查询</button>
     </form>
-    <p class="search-hint">只有主动输入呼号并查询后，才会显示对应的公开通联记录。</p>
+    <p class="search-hint">输入呼号后查询对应的公开通联记录。</p>
   </section>
 
   <section class="log-section" aria-labelledby="log-title">
@@ -49,7 +48,7 @@
       <p data-result-meta>请输入呼号开始查询。</p>
     </div>
     <div class="notice error" data-error hidden></div>
-    <div class="notice" data-loading hidden>正在查询通联档案……</div>
+    <div class="notice" data-loading hidden>正在查询……</div>
     <div class="notice" data-empty hidden>没有找到与该呼号的公开通联记录。</div>
     <div class="qso-list" data-list></div>
     <nav class="pagination" data-pagination hidden aria-label="日志分页">
@@ -61,7 +60,7 @@
 </main>
 
 <footer class="site-footer">
-  <span>BA4THG · 业余无线电通联档案</span>
+  <span>BA4THG · 业余无线电通联日志</span>
   <span>73，期待与你在电波中相遇。</span>
 </footer>
 </body>
