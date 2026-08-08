@@ -3,19 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="BA4THG 长期公开 QSO 通联档案与查询页面。">
-  <meta name="theme-color" content="#f6f7f8">
-  <title>BA4THG · 通联档案</title>
+  <meta name="description" content="BA4THG 长期公开 QSO 通联档案。">
+  <meta name="theme-color" content="#f7f8fa">
+  <title>BA4THG · 通联日志</title>
   <link rel="icon" type="image/svg+xml" href="./assets/ba4thg-mark.svg">
-  <link rel="stylesheet" href="./styles.css">
-  <script src="./app.js" defer></script>
+  <link rel="stylesheet" href="./styles.css?v=20260808-4">
+  <script src="./app.js?v=20260808-4" defer></script>
 </head>
 <body class="public-page">
 <header class="site-header">
   <div class="header-inner">
-    <a class="brand" href="./" aria-label="BA4THG 通联档案首页">
+    <a class="brand" href="./" aria-label="BA4THG 通联日志首页">
       <img src="./assets/ba4thg-mark.svg" alt="">
-      <span><strong>BA4THG</strong><small>通联档案</small></span>
+      <span><strong>BA4THG</strong><small>通联日志</small></span>
     </a>
     <nav aria-label="主导航">
       <a class="current" href="./">通联日志</a>
@@ -24,56 +24,33 @@
   </div>
 </header>
 
-<main class="shell">
-  <section class="station-overview" aria-labelledby="station-title">
-    <div class="station-identity">
-      <div class="status-line"><span class="status-dot" aria-hidden="true"></span>公开通联档案</div>
-      <h1 id="station-title">BA4THG</h1>
-      <p class="station-subtitle">业余无线电台 · 中国江苏南京</p>
-      <p class="station-description">这里保存 BA4THG 的长期 QSO 通联记录。近期公开记录来自我日常使用的第三方小程序公开接口，同步后保存在本站档案中；较早记录则通过历史文件或手工方式补录。</p>
+<main class="public-main">
+  <section class="station-head">
+    <div>
+      <h1>BA4THG</h1>
+      <p>中国江苏南京 · 业余无线电台</p>
     </div>
-    <dl class="station-facts" aria-label="台站档案信息">
-      <div><dt>所在地</dt><dd>南京</dd></div>
-      <div><dt>档案范围</dt><dd>长期归档</dd></div>
-      <div><dt>近期数据</dt><dd>第三方小程序</dd></div>
-      <div><dt>本台呼号</dt><dd class="mono">BA4THG</dd></div>
-    </dl>
+    <p class="station-note">近期记录来自日常使用的第三方小程序公开接口；同步后由本站长期保存。</p>
   </section>
 
-  <section class="panel query-panel" aria-labelledby="query-title">
-    <div class="panel-heading">
-      <div>
-        <h2 id="query-title">查询通联</h2>
-        <p>默认查询 BA4THG 的公开记录，也可以输入你的呼号检查双方是否有归档通联。</p>
-      </div>
-    </div>
-    <form class="query-grid" data-query-form>
-      <label class="query-callsign"><span>呼号</span><input name="callsign" value="BA4THG" maxlength="16" required autocomplete="off" spellcheck="false"></label>
-      <label><span>查询身份</span><select name="role"><option value="operator">作为本台</option><option value="contact">作为对方</option></select></label>
-      <label><span>年份</span><input name="year" inputmode="numeric" pattern="\d{4}" maxlength="4" placeholder="全部"></label>
-      <label><span>模式</span><input name="mode" maxlength="24" placeholder="全部"></label>
-      <label><span>频段</span><input name="band" maxlength="16" placeholder="例如 2m"></label>
-      <button class="primary" type="submit">查询</button>
+  <section class="search-section" aria-labelledby="search-title">
+    <h2 id="search-title">查询通联记录</h2>
+    <form class="search-form" data-query-form>
+      <label class="sr-only" for="qso-search">搜索通联记录</label>
+      <input id="qso-search" name="q" autocomplete="off" spellcheck="false" placeholder="搜索呼号、地点、设备、频率或备注">
+      <button class="primary" type="submit">搜索</button>
     </form>
+    <p class="search-hint">留空可查看全部已归档记录。</p>
   </section>
 
-  <section class="summary" data-summary hidden aria-label="通联统计">
-    <article><span>通联记录</span><strong data-summary-qso>0</strong></article>
-    <article><span>不同呼号</span><strong data-summary-contact>0</strong></article>
-    <article><span>已寄 QSL</span><strong data-summary-sent>0</strong></article>
-    <article><span>已收 QSL</span><strong data-summary-received>0</strong></article>
-  </section>
-
-  <section class="panel results" aria-labelledby="results-title">
-    <div class="panel-heading result-heading">
-      <div>
-        <h2 id="results-title">通联日志</h2>
-        <p data-result-meta>准备查询。</p>
-      </div>
+  <section class="log-section" aria-labelledby="log-title">
+    <div class="log-heading">
+      <h2 id="log-title">通联记录</h2>
+      <p data-result-meta>正在读取……</p>
     </div>
     <div class="notice error" data-error hidden></div>
     <div class="notice" data-loading hidden>正在读取通联档案……</div>
-    <div class="notice" data-empty hidden>没有找到符合条件的公开通联记录。</div>
+    <div class="notice" data-empty hidden>没有找到匹配的通联记录。</div>
     <div class="qso-list" data-list></div>
     <nav class="pagination" data-pagination hidden aria-label="日志分页">
       <button type="button" data-prev>上一页</button>
@@ -84,8 +61,8 @@
 </main>
 
 <footer class="site-footer">
-  <div><strong>BA4THG</strong><span>业余无线电通联档案</span></div>
-  <p>近期记录由第三方公开接口同步，本站负责长期归档。73。</p>
+  <span>BA4THG · 业余无线电通联档案</span>
+  <span>73，期待与你在电波中相遇。</span>
 </footer>
 </body>
 </html>
