@@ -6,19 +6,19 @@
   Content-Security-Policy: default-src 'self'; base-uri 'self'; connect-src 'self' https://api.mzyyun.com; font-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; object-src 'none'; script-src 'self'; style-src 'self'; upgrade-insecure-requests
 
 /index.html
-  Cache-Control: public, max-age=0, must-revalidate
+  Cache-Control: no-cache, must-revalidate
 
 /admin.html
   Cache-Control: no-store
 
 /app.js
-  Cache-Control: public, max-age=3600, must-revalidate
+  Cache-Control: no-cache, must-revalidate
 
 /admin.js
   Cache-Control: no-store
 
 /styles.css
-  Cache-Control: public, max-age=3600, must-revalidate
+  Cache-Control: no-cache, must-revalidate
 
 /assets/*
   Cache-Control: public, max-age=86400, stale-while-revalidate=604800
