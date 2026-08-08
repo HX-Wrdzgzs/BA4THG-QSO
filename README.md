@@ -1,33 +1,59 @@
-# BA4THG QSO Archive
+# BA4THG 通联档案
 
-BA4THG 的独立 QSO 数字档案与公开日志网站。
+BA4THG 的独立 QSO 长期档案与公开查询网站。
 
-## 架构
+## 实际使用方式
+
+日常 QSO 仍然在第三方小程序中记录。本站不替代那个小程序，而是把第三方公开接口当前能够提供的近期记录同步进自己的 Cloudflare D1，形成长期可控的归档副本。
 
 ```text
-网页手动录入 / ADIF / CSV / JSON ─┐
-                                    ├─> Cloudflare Pages Functions ─> D1 ─> 公开日志
-管理员浏览器 ─> api.mzyyun.com ────┘
-             (已登记 Origin)
+第三方小程序日常记录
+        ↓
+api.mzyyun.com 公开接口（近期公开记录）
+        ↓
+管理员浏览器同步
+        ↓
+Cloudflare Pages Functions
+        ↓
+Cloudflare D1 长期档案
+        ↓
+qso.mizuki.top 公开查询
 ```
 
+历史文件也可以直接进入本站：
+
+```text
+ADIF / CSV / JSON / 手工录入
+              ↓
+Cloudflare Pages Functions
+              ↓
+Cloudflare D1
+```
+
+## 站点信息
+
 - 正式域名：`https://qso.mizuki.top`
-- Cloudflare Pages：静态页面 + Pages Functions
-- Cloudflare D1：全时段长期 QSO 档案
-- `api.mzyyun.com`：只作为近一年公开数据同步来源，不是网站实时依赖
-- QSL 图片与卡面：继续留在独立的 `BA4THG-QSL` 仓库，不放到本项目
-
-## 页面
-
-- `/`：公开全时段 QSO 日志
-- `/admin.html`：私有录入、编辑、导入、浏览器同步、备份导出
+- 公开页面：长期 QSO 查询
+- 管理页面：录入、修改、历史导入、第三方同步和备份导出
+- 长期数据库：Cloudflare D1
+- 近期第三方数据源：`https://api.mzyyun.com/public/qso`
+- QSL 图片与卡面：继续放在独立的 `BA4THG-QSL` 仓库，不与本项目混合
 
 ## 数据原则
 
-1. D1 永久保存已归档记录，不因上游 API 超过一年后不再返回而删除。
-2. 上游同步以 `source + source_id` 建立来源映射，并用 QSO 指纹去重。
-3. 网页查询只读 D1，不会因为访客查询而调用上游 API。
-4. 历史记录可通过 ADIF / CSV / JSON 或网页手动补录。
-5. 定期导出 ADIF 和 JSON 到 Cloudflare 账户以外的位置。
+1. 已经同步或导入 D1 的记录长期保留。
+2. 第三方接口以后不再返回某条旧记录时，本站不会因此删除归档副本。
+3. 第三方同步通过来源编号建立映射，同时使用 QSO 指纹避免重复。
+4. 如果第三方记录已经被你在本站手工修改，则本站修改后的内容优先，后续同步不会覆盖它。
+5. 公开查询只读取本站 D1，不会让普通访客直接调用第三方接口。
+6. 较早记录可以通过 ADIF、CSV、JSON 或手工方式补齐。
+7. 应定期把 JSON 与 ADIF 备份到 Cloudflare 账户之外。
 
-部署与 D1 初始化见 [`DEPLOYMENT.md`](./DEPLOYMENT.md)。
+## 自动部署
+
+Cloudflare Pages 已连接 GitHub 的 `main` 分支并启用自动部署。以后只要向 `main` 提交修改，Cloudflare Pages 会自动重新部署，不再使用额外的 GitHub Actions 部署挂钩。
+
+## 文档
+
+- 部署与 Cloudflare 配置：[`DEPLOYMENT.md`](./DEPLOYMENT.md)
+- 页面设计规范：[`DESIGN.md`](./DESIGN.md)
