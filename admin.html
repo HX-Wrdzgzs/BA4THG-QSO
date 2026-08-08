@@ -8,7 +8,7 @@
   <title>BA4THG · 记录管理</title>
   <link rel="icon" type="image/svg+xml" href="./assets/ba4thg-mark.svg">
   <link rel="stylesheet" href="./styles.css?v=20260808-7">
-  <script src="./admin.js?v=20260808-7" defer></script>
+  <script src="./admin.js?v=20260808-8" defer></script>
 </head>
 <body class="admin-page">
 <header class="site-header">
@@ -17,17 +17,14 @@
       <img src="./assets/ba4thg-mark.svg" alt="">
       <span><strong>BA4THG</strong><small>记录管理</small></span>
     </a>
-    <nav aria-label="主导航">
-      <a href="./">返回日志</a>
-      <a class="current" href="./admin.html">记录管理</a>
-    </nav>
+    <nav aria-label="主导航"><a href="./">返回日志</a></nav>
   </div>
 </header>
 
 <main>
   <section class="page-heading">
     <h1>记录管理</h1>
-    <p>用于维护通联记录，包括手工录入、历史导入、近期同步和备份导出。</p>
+    <p>请输入管理令牌继续。</p>
   </section>
 
   <section class="auth panel" aria-label="管理认证">
@@ -35,80 +32,82 @@
       <span>管理令牌</span>
       <input type="password" data-token autocomplete="off" placeholder="输入管理令牌">
     </label>
-    <button class="primary" type="button" data-connect>连接</button>
-    <span data-connection>尚未连接</span>
+    <button class="primary" type="button" data-connect>验证</button>
+    <span data-connection>尚未验证</span>
   </section>
 
-  <div class="admin-grid">
-    <section class="panel">
-      <div class="panel-heading">
-        <div>
-          <h2>手工录入</h2>
-          <p>用于补录或修改通联记录。</p>
+  <div data-admin-content hidden>
+    <div class="admin-grid">
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <h2>手工录入</h2>
+            <p>用于补录或修改通联记录。</p>
+          </div>
+          <button class="link-button" type="button" data-reset>清空表单</button>
         </div>
-        <button class="link-button" type="button" data-reset>清空表单</button>
-      </div>
-      <form class="entry-grid" data-entry-form>
-        <input type="hidden" name="id">
-        <label><span>本台呼号</span><input name="myCallsign" value="BA4THG" maxlength="16" required></label>
-        <label><span>对方呼号</span><input name="theirCallsign" maxlength="16" required></label>
-        <label><span>通联时间</span><input name="qsoDatetime" type="datetime-local" required></label>
-        <label><span>频率（MHz）</span><input name="frequency" type="number" min="0" step="0.000001" placeholder="145.100"></label>
-        <label><span>模式</span><input name="mode" value="FM" maxlength="24" required></label>
-        <label><span>功率（W）</span><input name="myPower" type="number" min="0" step="0.1"></label>
-        <label><span>本台设备</span><input name="myEquipment"></label>
-        <label><span>本台天线</span><input name="myAntenna"></label>
-        <label><span>本台地点</span><input name="myQth"></label>
-        <label><span>对方地点</span><input name="theirQth"></label>
-        <label><span>发出 RST</span><input name="rstSent" maxlength="16"></label>
-        <label><span>收到 RST</span><input name="rstReceived" maxlength="16"></label>
-        <label class="wide"><span>备注</span><textarea name="notes" rows="4"></textarea></label>
-        <label class="check"><input name="qslSent" type="checkbox"><span>已寄出 QSL</span></label>
-        <label class="check"><input name="qslReceived" type="checkbox"><span>已收到 QSL</span></label>
-        <label class="check"><input name="isPublic" type="checkbox" checked><span>允许公开展示</span></label>
-        <button class="primary wide" type="submit" data-submit>保存记录</button>
-      </form>
-      <p class="status" data-operation></p>
-    </section>
-
-    <aside class="tools" aria-label="记录工具">
-      <section class="panel tool">
-        <h2>导入历史记录</h2>
-        <p>支持 ADIF、CSV 和 JSON，重复记录会自动去重。</p>
-        <input type="file" accept=".adi,.adif,.csv,.json,text/plain,application/json" data-import-file>
-        <button class="secondary" type="button" data-import>选择文件并导入</button>
-        <p class="status" data-import-state></p>
+        <form class="entry-grid" data-entry-form>
+          <input type="hidden" name="id">
+          <label><span>本台呼号</span><input name="myCallsign" value="BA4THG" maxlength="16" required></label>
+          <label><span>对方呼号</span><input name="theirCallsign" maxlength="16" required></label>
+          <label><span>通联时间</span><input name="qsoDatetime" type="datetime-local" required></label>
+          <label><span>频率（MHz）</span><input name="frequency" type="number" min="0" step="0.000001" placeholder="145.100"></label>
+          <label><span>模式</span><input name="mode" value="FM" maxlength="24" required></label>
+          <label><span>功率（W）</span><input name="myPower" type="number" min="0" step="0.1"></label>
+          <label><span>本台设备</span><input name="myEquipment"></label>
+          <label><span>本台天线</span><input name="myAntenna"></label>
+          <label><span>本台地点</span><input name="myQth"></label>
+          <label><span>对方地点</span><input name="theirQth"></label>
+          <label><span>发出 RST</span><input name="rstSent" maxlength="16"></label>
+          <label><span>收到 RST</span><input name="rstReceived" maxlength="16"></label>
+          <label class="wide"><span>备注</span><textarea name="notes" rows="4"></textarea></label>
+          <label class="check"><input name="qslSent" type="checkbox"><span>已寄出 QSL</span></label>
+          <label class="check"><input name="qslReceived" type="checkbox"><span>已收到 QSL</span></label>
+          <label class="check"><input name="isPublic" type="checkbox" checked><span>允许公开展示</span></label>
+          <button class="primary wide" type="submit" data-submit>保存记录</button>
+        </form>
+        <p class="status" data-operation></p>
       </section>
 
-      <section class="panel tool">
-        <h2>同步近期记录</h2>
-        <p>读取近期可用记录并写入长期档案，已有历史记录不会被自动删除。</p>
-        <button class="secondary" type="button" data-sync>开始同步</button>
-        <p class="status" data-sync-state></p>
-      </section>
+      <aside class="tools" aria-label="记录工具">
+        <section class="panel tool">
+          <h2>导入历史记录</h2>
+          <p>支持 ADIF、CSV 和 JSON，重复记录会自动去重。</p>
+          <input type="file" accept=".adi,.adif,.csv,.json,text/plain,application/json" data-import-file>
+          <button class="secondary" type="button" data-import>选择文件并导入</button>
+          <p class="status" data-import-state></p>
+        </section>
 
-      <section class="panel tool">
-        <h2>导出备份</h2>
-        <p>可导出 JSON 或 ADIF 备份。</p>
-        <div class="button-row">
-          <button class="secondary" type="button" data-export="json">导出 JSON</button>
-          <button class="secondary" type="button" data-export="adif">导出 ADIF</button>
-        </div>
-      </section>
-    </aside>
-  </div>
+        <section class="panel tool">
+          <h2>同步近期记录</h2>
+          <p>读取近期可用记录并写入长期档案，已有历史记录不会被自动删除。</p>
+          <button class="secondary" type="button" data-sync>开始同步</button>
+          <p class="status" data-sync-state></p>
+        </section>
 
-  <section class="panel results">
-    <div class="panel-heading result-heading">
-      <div>
-        <h2>最近记录</h2>
-        <p>用于检查最近录入、导入或同步的内容。</p>
-      </div>
-      <button class="link-button" type="button" data-refresh>刷新列表</button>
+        <section class="panel tool">
+          <h2>导出备份</h2>
+          <p>可导出 JSON 或 ADIF 备份。</p>
+          <div class="button-row">
+            <button class="secondary" type="button" data-export="json">导出 JSON</button>
+            <button class="secondary" type="button" data-export="adif">导出 ADIF</button>
+          </div>
+        </section>
+      </aside>
     </div>
-    <div class="notice error" data-admin-error hidden></div>
-    <div class="qso-list" data-admin-list></div>
-  </section>
+
+    <section class="panel results">
+      <div class="panel-heading result-heading">
+        <div>
+          <h2>最近记录</h2>
+          <p>用于检查最近录入、导入或同步的内容。</p>
+        </div>
+        <button class="link-button" type="button" data-refresh>刷新列表</button>
+      </div>
+      <div class="notice error" data-admin-error hidden></div>
+      <div class="qso-list" data-admin-list></div>
+    </section>
+  </div>
 </main>
 
 <footer>
