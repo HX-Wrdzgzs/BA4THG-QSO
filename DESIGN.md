@@ -1,127 +1,147 @@
-# BA4THG QSO Archive — Design System
+# BA4THG 通联档案设计规范
 
-## Intent
+## 设计目标
 
-This is an amateur-radio logbook and archive, not a marketing landing page. The interface should feel like a precise, quiet station utility: compact, readable, trustworthy, and fast.
+这是业余无线电通联日志与长期档案工具，不是营销落地页。界面应当像一套安静、准确、可靠的台站工具：紧凑、清晰、可信、快速。
 
-Design dials:
-- DESIGN_VARIANCE: 3/10
-- MOTION_INTENSITY: 1/10
-- VISUAL_DENSITY: 7/10
+设计参数：
 
-## Visual language
+- 设计变化度：3 / 10
+- 动效强度：1 / 10
+- 信息密度：7 / 10
 
-- Dense but not cramped.
-- Prefer structure, borders, typography, and alignment over shadows and decorative surfaces.
-- Avoid oversized hero typography, giant statistic cards, pill-heavy UI, decorative section-number eyebrows, gradients, glass effects, and ornamental motion.
-- Public logbook and admin console share the same design system, but the admin page may be denser.
+## 视觉语言
 
-## Color tokens
+- 信息密度较高，但不能拥挤。
+- 优先依靠结构、边框、排版和对齐建立层级，不依赖重阴影和装饰卡片。
+- 避免超大首屏标题、巨型统计卡、大量胶囊组件、装饰性章节编号、渐变、玻璃效果和无意义动效。
+- 公开日志与档案管理使用同一套设计系统，但管理页可以更紧凑。
+- 所有用户可见文案默认使用简体中文。
+- `QSO`、`QSL`、`RST`、`ADIF`、`CSV`、`JSON`、`MHz`、`DB`、API 地址等行业或技术标识保留原文，不做错误翻译。
 
-- `--canvas`: #f6f7f8
-- `--surface`: #ffffff
-- `--surface-subtle`: #f1f3f5
-- `--ink`: #172026
-- `--muted`: #68737d
-- `--line`: #d9dee3
-- `--line-strong`: #bcc5cd
-- `--accent`: #176b87
-- `--accent-strong`: #0f536a
-- `--success`: #25724d
-- `--danger`: #b34444
+## 颜色
 
-The accent is functional only: active navigation, primary actions, status marks, links, and focus states.
+- `--canvas`：#f6f7f8，页面底色
+- `--surface`：#ffffff，主要内容面
+- `--surface-subtle`：#f1f3f5，次级内容面
+- `--ink`：#172026，正文
+- `--muted`：#68737d，次要文字
+- `--line`：#d9dee3，普通边框
+- `--line-strong`：#bcc5cd，强调边框
+- `--accent`：#176b87，主强调色
+- `--accent-strong`：#0f536a，深强调色
+- `--success`：#25724d，成功状态
+- `--danger`：#b34444，错误与危险操作
 
-## Typography
+强调色只用于当前导航、主要操作、状态、链接和焦点，不作为大面积装饰。
 
-System fonts only. No external font dependency.
+## 字体
 
-- UI/body: `Segoe UI Variable`, `PingFang SC`, `Microsoft YaHei UI`, system-ui, sans-serif.
-- Callsigns / frequencies / compact machine-like data: `Cascadia Mono`, `SFMono-Regular`, Consolas, monospace.
-- Heading sizes are restrained. Callsign is the largest element, but should not exceed roughly 64px on desktop.
-- Avoid extreme negative tracking.
+只使用系统字体，不依赖外部字体服务。
 
-## Layout
+- 正文与界面：`Segoe UI Variable`、`PingFang SC`、`Microsoft YaHei UI`、系统无衬线字体。
+- 呼号、频率和紧凑数据：`Cascadia Mono`、`SFMono-Regular`、Consolas、等宽字体。
+- 标题尺寸保持克制。呼号可以是页面最大元素，但桌面端原则上不超过约 68px。
+- 不使用过度负字距。
 
-- Main content max width: 1180px.
-- Header height: about 60px.
-- Desktop page padding: 28–36px.
-- Mobile page padding: 14–18px.
-- Vertical rhythm: 16 / 20 / 28 / 36px.
-- Public page order: station identity → query controls → metrics → logbook.
-- Admin page order: compact heading → authentication bar → entry/tools → recent records.
+## 页面布局
 
-## Components
+- 主内容最大宽度：1180px。
+- 顶部导航高度：约 60px。
+- 桌面左右留白：28–36px。
+- 手机左右留白：14–18px。
+- 常用纵向间距：16 / 20 / 28 / 36px。
+- 公开页顺序：台站身份 → 查询 → 统计 → 通联日志。
+- 管理页顺序：页面说明 → 管理认证 → 录入与工具 → 最近记录。
 
-### Header
-- White or near-white surface, 1px bottom border.
-- No blur-heavy glass treatment.
-- Active nav uses accent text and a subtle underline/bottom border.
+## 组件规范
 
-### Station identity
-- Not a giant hero.
-- Callsign + short role/QTH line on the left.
-- Compact station facts on the right.
-- May use a thin accent rule or status dot, not illustration.
+### 顶部导航
 
-### Panels
-- 1px border, 10–12px radius.
-- No large drop shadow.
-- Background is white.
-- Internal padding 18–24px.
+- 白色或接近白色背景，底部 1px 边框。
+- 不使用重度模糊玻璃效果。
+- 当前页面使用强调色文字和轻量底边标识。
 
-### Inputs
-- 38–42px height.
-- 7–8px radius.
-- Quiet neutral background.
-- Clear focus ring.
+### 台站信息
 
-### Buttons
-- 7–8px radius, not pills.
-- Primary uses accent fill.
-- Secondary uses white background + border.
-- Hover may change background/border only; no bouncing/translate animation.
+- 不做巨大营销式首屏。
+- 左侧展示呼号、所在地和简短说明。
+- 右侧展示紧凑台站档案信息。
+- 可以使用小型状态点，不使用装饰插画占据主体空间。
 
-### Metrics
-- One compact horizontal strip or four aligned cells.
-- No oversized independent cards.
-- Numbers are prominent but not decorative.
+### 内容面板
 
-### QSO records
-- Read like structured log rows.
-- Callsign, timestamp, frequency/mode/band form the primary scan line.
-- Equipment/QTH/RST use compact definition-grid formatting.
-- QSL state is a small tag, not a large badge.
-- Notes use a subtle top divider.
+- 1px 边框。
+- 10–12px 圆角。
+- 不使用明显大阴影。
+- 白色背景。
+- 内边距 18–24px。
 
-## Motion
+### 输入控件
 
-- No entrance animations.
-- No parallax.
-- No scroll-triggered motion.
-- Only short 100–160ms state transitions for hover/focus/background/border.
-- Respect `prefers-reduced-motion`.
+- 高度约 38–42px。
+- 7–8px 圆角。
+- 中性浅色背景。
+- 键盘焦点必须清楚可见。
 
-## Responsive behavior
+### 按钮
 
-- Under ~860px, station facts stack below identity and query controls wrap into two columns.
-- Under ~620px, query and admin forms become one column.
-- QSO metadata may collapse from 3 columns to 2 then 1.
-- Keep touch targets at least 40px high.
+- 7–8px 圆角，不使用胶囊按钮。
+- 主要操作使用强调色实底。
+- 次要操作使用白底加边框。
+- 悬停只改变背景、边框或文字，不做跳动位移动画。
 
-## Guardrails
+### 统计
 
-Do not add:
-- giant display headings,
-- marketing copy,
-- gradient backgrounds,
-- glassmorphism,
-- decorative blobs,
-- excessive rounded cards,
-- fake dashboard widgets,
-- section labels like `01 / QUERY`,
-- excessive uppercase microcopy,
-- automatic carousels,
-- unnecessary animation libraries.
+- 使用一条紧凑统计栏或四个对齐单元格。
+- 不使用四个巨型独立统计卡。
+- 数字应易读，但不能成为装饰性主视觉。
 
-The result should look like a well-designed radio log utility, not an AI-generated SaaS landing page.
+### QSO 记录
+
+- 视觉上应像结构化日志行。
+- 呼号、时间、频率、模式和频段构成主要扫读信息。
+- 设备、地点、RST 使用紧凑定义网格。
+- QSL 状态使用小标签。
+- 备注与主体之间使用轻量分隔线。
+
+## 数据来源表达
+
+- 公开页需要说明：近期记录来自日常使用的第三方小程序公开接口，本站负责长期归档。
+- 不把第三方 API 描述成本站自有服务。
+- 不让普通访客直接访问第三方接口，公开查询只读取本站 D1。
+- 管理页应清楚区分“手工录入”“历史文件导入”“第三方小程序同步”。
+- 第三方接口的内部来源代码可以保留英文，但界面显示必须翻译为中文说明。
+
+## 动效
+
+- 不使用入场动画。
+- 不使用视差。
+- 不使用滚动触发动画。
+- 只允许 100–160ms 左右的悬停、焦点、背景和边框状态过渡。
+- 尊重 `prefers-reduced-motion`。
+
+## 响应式
+
+- 约 860px 以下，台站信息改为纵向排列，查询区允许两列换行。
+- 约 620px 以下，查询和管理表单改为单列。
+- QSO 元数据可以从三列降为两列，再降为一列。
+- 触摸目标高度至少保持约 40px。
+
+## 禁止事项
+
+不要加入：
+
+- 巨型展示标题
+- 营销式宣传文案
+- 渐变背景
+- 玻璃拟态
+- 装饰性几何团块
+- 大量圆角卡片
+- 假仪表盘组件
+- `01 / QUERY` 这类装饰章节编号
+- 大量全大写小字
+- 自动轮播
+- 不必要的动画库
+
+最终效果应当像设计成熟的无线电通联日志工具，而不是通用 AI 生成的 SaaS 落地页。
