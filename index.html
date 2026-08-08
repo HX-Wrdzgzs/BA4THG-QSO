@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="BA4THG 全时段公开 QSO 通联日志。">
+  <meta name="description" content="BA4THG 长期公开 QSO 通联档案与查询页面。">
   <meta name="theme-color" content="#f6f7f8">
-  <title>BA4THG · 通联日志</title>
+  <title>BA4THG · 通联档案</title>
   <link rel="icon" type="image/svg+xml" href="./assets/ba4thg-mark.svg">
   <link rel="stylesheet" href="./styles.css">
   <script src="./app.js" defer></script>
@@ -13,13 +13,13 @@
 <body class="public-page">
 <header class="site-header">
   <div class="header-inner">
-    <a class="brand" href="./" aria-label="BA4THG QSO 首页">
+    <a class="brand" href="./" aria-label="BA4THG 通联档案首页">
       <img src="./assets/ba4thg-mark.svg" alt="">
       <span><strong>BA4THG</strong><small>通联档案</small></span>
     </a>
     <nav aria-label="主导航">
       <a class="current" href="./">通联日志</a>
-      <a href="./admin.html">管理</a>
+      <a href="./admin.html">档案管理</a>
     </nav>
   </div>
 </header>
@@ -30,13 +30,13 @@
       <div class="status-line"><span class="status-dot" aria-hidden="true"></span>公开通联档案</div>
       <h1 id="station-title">BA4THG</h1>
       <p class="station-subtitle">业余无线电台 · 中国江苏南京</p>
-      <p class="station-description">这里保存 BA4THG 的长期 QSO 档案。公开查询直接读取自有 D1 数据库，第三方接口只作为管理员同步来源。</p>
+      <p class="station-description">这里保存 BA4THG 的长期 QSO 通联记录。近期公开记录来自我日常使用的第三方小程序公开接口，同步后保存在本站档案中；较早记录则通过历史文件或手工方式补录。</p>
     </div>
     <dl class="station-facts" aria-label="台站档案信息">
-      <div><dt>QTH</dt><dd>南京</dd></div>
-      <div><dt>档案范围</dt><dd>全时段</dd></div>
-      <div><dt>数据存储</dt><dd>Cloudflare D1</dd></div>
-      <div><dt>呼号</dt><dd class="mono">BA4THG</dd></div>
+      <div><dt>所在地</dt><dd>南京</dd></div>
+      <div><dt>档案范围</dt><dd>长期归档</dd></div>
+      <div><dt>近期数据</dt><dd>第三方小程序</dd></div>
+      <div><dt>本台呼号</dt><dd class="mono">BA4THG</dd></div>
     </dl>
   </section>
 
@@ -44,12 +44,12 @@
     <div class="panel-heading">
       <div>
         <h2 id="query-title">查询通联</h2>
-        <p>输入呼号后，可按身份、年份、模式和频段筛选公开记录。</p>
+        <p>默认查询 BA4THG 的公开记录，也可以输入你的呼号检查双方是否有归档通联。</p>
       </div>
     </div>
     <form class="query-grid" data-query-form>
       <label class="query-callsign"><span>呼号</span><input name="callsign" value="BA4THG" maxlength="16" required autocomplete="off" spellcheck="false"></label>
-      <label><span>身份</span><select name="role"><option value="operator">作为本台</option><option value="contact">作为对方</option></select></label>
+      <label><span>查询身份</span><select name="role"><option value="operator">作为本台</option><option value="contact">作为对方</option></select></label>
       <label><span>年份</span><input name="year" inputmode="numeric" pattern="\d{4}" maxlength="4" placeholder="全部"></label>
       <label><span>模式</span><input name="mode" maxlength="24" placeholder="全部"></label>
       <label><span>频段</span><input name="band" maxlength="16" placeholder="例如 2m"></label>
@@ -84,8 +84,8 @@
 </main>
 
 <footer class="site-footer">
-  <div><strong>BA4THG</strong><span>数字电台档案</span></div>
-  <p>73，期待与你在电波中相遇。</p>
+  <div><strong>BA4THG</strong><span>业余无线电通联档案</span></div>
+  <p>近期记录由第三方公开接口同步，本站负责长期归档。73。</p>
 </footer>
 </body>
 </html>
