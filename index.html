@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="BA4THG 全时段公开 QSO 通联日志。">
+  <meta name="theme-color" content="#f5f5f2">
+  <title>BA4THG · QSO Logbook</title>
+  <link rel="icon" type="image/svg+xml" href="./assets/ba4thg-mark.svg">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="./"><img src="./assets/ba4thg-mark.svg" alt=""><span><strong>BA4THG</strong><small>QSO ARCHIVE</small></span></a>
+  <nav><a class="current" href="./">通联日志</a><a href="./admin.html">录入后台</a></nav>
+</header>
+<main>
+  <section class="hero">
+    <p class="eyebrow">BA4THG DIGITAL RADIO ARCHIVE</p>
+    <h1>全时段<br>通联日志</h1>
+    <p>公开页面只读取自有 Cloudflare D1 长期档案。上游公开 API 仅由管理员浏览器用于同步近一年记录。</p>
+  </section>
+
+  <section class="panel">
+    <div class="section-head"><div><p class="index">01 / QUERY</p><h2>查询通联</h2></div><p>查看 BA4THG 的公开日志，或输入你的呼号检查双方是否有归档记录。</p></div>
+    <form class="query-grid" data-query-form>
+      <label><span>呼号</span><input name="callsign" value="BA4THG" maxlength="16" required autocomplete="off" spellcheck="false"></label>
+      <label><span>查询方向</span><select name="role"><option value="operator">该呼号作为本台</option><option value="contact">该呼号作为对方</option></select></label>
+      <label><span>年份</span><input name="year" inputmode="numeric" pattern="\d{4}" maxlength="4" placeholder="全部"></label>
+      <label><span>模式</span><input name="mode" maxlength="24" placeholder="全部"></label>
+      <label><span>频段</span><input name="band" maxlength="16" placeholder="如 2m"></label>
+      <button class="primary" type="submit">开始查询</button>
+    </form>
+  </section>
+
+  <section class="summary" data-summary hidden>
+    <article><strong data-summary-qso>0</strong><span>通联记录</span></article>
+    <article><strong data-summary-contact>0</strong><span>不同呼号</span></article>
+    <article><strong data-summary-sent>0</strong><span>已寄 QSL</span></article>
+    <article><strong data-summary-received>0</strong><span>已收 QSL</span></article>
+  </section>
+
+  <section class="panel results">
+    <div class="section-head compact"><div><p class="index">02 / LOGBOOK</p><h2>查询结果</h2></div><p data-result-meta>准备查询。</p></div>
+    <div class="notice error" data-error hidden></div>
+    <div class="notice" data-loading hidden>正在读取通联档案……</div>
+    <div class="notice" data-empty hidden>没有找到符合条件的公开通联记录。</div>
+    <div class="qso-list" data-list></div>
+    <nav class="pagination" data-pagination hidden><button type="button" data-prev>上一页</button><span data-page-label></span><button type="button" data-next>下一页</button></nav>
+  </section>
+</main>
+<footer><p><strong>BA4THG</strong> · Digital Radio Archive</p><p>73，期待与你在电波中相遇。</p></footer>
+</body>
+</html>
