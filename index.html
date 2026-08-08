@@ -7,8 +7,8 @@
   <meta name="theme-color" content="#f7f8fa">
   <title>BA4THG · 通联日志</title>
   <link rel="icon" type="image/svg+xml" href="./assets/ba4thg-mark.svg">
-  <link rel="stylesheet" href="./styles.css?v=20260808-5">
-  <script src="./app.js?v=20260808-5" defer></script>
+  <link rel="stylesheet" href="./styles.css?v=20260808-6">
+  <script src="./app.js?v=20260808-6" defer></script>
 </head>
 <body class="public-page">
 <header class="site-header">
@@ -30,27 +30,27 @@
       <h1>BA4THG</h1>
       <p>中国江苏南京 · 业余无线电台</p>
     </div>
-    <p class="station-note">近期记录实时读取第三方小程序公开接口；已归档记录由本站长期保存。</p>
+    <p class="station-note">这里用于查询与 BA4THG 的公开通联记录。页面不会默认展示通联列表。</p>
   </section>
 
   <section class="search-section" aria-labelledby="search-title">
     <h2 id="search-title">查询通联记录</h2>
     <form class="search-form" data-query-form>
-      <label class="sr-only" for="qso-search">搜索通联记录</label>
-      <input id="qso-search" name="q" autocomplete="off" spellcheck="false" placeholder="搜索呼号、地点、设备、频率或备注">
-      <button class="primary" type="submit">搜索</button>
+      <label class="sr-only" for="qso-search">输入对方呼号</label>
+      <input id="qso-search" name="q" autocomplete="off" spellcheck="false" maxlength="16" placeholder="输入呼号" required>
+      <button class="primary" type="submit">查询</button>
     </form>
-    <p class="search-hint">例如输入 BA4VRM 或 430.610；留空查看全部记录。</p>
+    <p class="search-hint">只有主动输入呼号并查询后，才会显示对应的公开通联记录。</p>
   </section>
 
   <section class="log-section" aria-labelledby="log-title">
     <div class="log-heading">
-      <h2 id="log-title">通联记录</h2>
-      <p data-result-meta>正在读取……</p>
+      <h2 id="log-title">查询结果</h2>
+      <p data-result-meta>请输入呼号开始查询。</p>
     </div>
     <div class="notice error" data-error hidden></div>
-    <div class="notice" data-loading hidden>正在读取通联档案……</div>
-    <div class="notice" data-empty hidden>没有找到匹配的通联记录。</div>
+    <div class="notice" data-loading hidden>正在查询通联档案……</div>
+    <div class="notice" data-empty hidden>没有找到与该呼号的公开通联记录。</div>
     <div class="qso-list" data-list></div>
     <nav class="pagination" data-pagination hidden aria-label="日志分页">
       <button type="button" data-prev>上一页</button>
