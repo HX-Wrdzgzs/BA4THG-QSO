@@ -1,117 +1,213 @@
-# BA4THG QSO Archive 部署
+# BA4THG 通联档案部署说明
 
 ## 1. Cloudflare Pages
 
-将本仓库连接到 Cloudflare Pages：
+将本仓库连接到 Cloudflare Pages，使用以下设置：
 
-- Framework preset：None
-- Build command：留空
-- Build output directory：`.`
-- Root directory：仓库根目录
+- 框架预设：无
+- 构建命令：留空
+- 构建输出目录：`.`
+- 根目录：仓库根目录
+- 生产分支：`main`
+- 自动部署：启用
 
-正式自定义域名使用：
+正式自定义域名：
 
 ```text
 qso.mizuki.top
 ```
 
-域名确认可以 HTTPS 正常访问后，再在微信小程序 **设置 → 网站接入** 中添加完整 Origin：
+GitHub 与 Cloudflare Pages 已连接后，每次向 `main` 提交修改，Cloudflare 会自动重新部署，不需要再配置额外的部署挂钩或 GitHub Actions。
+
+## 2. 第三方小程序网站接入
+
+本站近期数据来自日常使用的第三方小程序公开接口：
+
+```text
+https://api.mzyyun.com/public/qso
+```
+
+当 `https://qso.mizuki.top` 已经可以正常通过 HTTPS 访问后，在对方小程序中进入：
+
+```text
+设置 → 网站接入
+```
+
+添加完整网站来源：
 
 ```text
 https://qso.mizuki.top
 ```
 
-不要填写路径，例如 `/admin.html`；也不要只填裸域名。公开 API 会根据浏览器自动携带的 `Origin` 识别对应操作员，无 Origin 或未登记 Origin 会返回 403。
+这里必须填写完整协议和域名：
 
-## 2. 创建 D1
+- 正确：`https://qso.mizuki.top`
+- 不要只填：`qso.mizuki.top`
+- 不要加页面路径：`/admin.html`
 
-```bash
-npx wrangler d1 create ba4thg-qso
+第三方接口会根据浏览器携带的网站来源（Origin）识别对应台站。没有来源信息，或者来源没有在小程序中登记时，会返回 403。
+
+## 3. D1 数据库
+
+数据库名称：
+
+```text
+ba4thg-qso
 ```
 
-记录返回的 `database_id`。将 `wrangler.toml.example` 复制为本地 `wrangler.toml`，替换数据库 ID。
+当前迁移文件：
 
-执行迁移：
+```text
+migrations/0001_initial.sql
+```
+
+如果直接使用 Cloudflare 网页控制台，可以进入：
+
+```text
+D1 数据库 → ba4thg-qso → 控制台
+```
+
+把迁移 SQL 粘贴执行即可。
+
+执行完成后使用：
+
+```text
+/tables
+```
+
+应看到主要业务表：
+
+```text
+qsos
+qso_sources
+sync_runs
+audit_logs
+```
+
+`sqlite_sequence` 是 SQLite 自己维护的系统表，出现它属于正常情况。
+
+如果以后改用命令行，也可以执行：
 
 ```bash
 npx wrangler d1 migrations apply ba4thg-qso --remote
 ```
 
-## 3. Pages 绑定
+## 4. Pages 绑定 D1
 
-Cloudflare Pages → Settings → Bindings：
+进入 Cloudflare：
 
-- 类型：D1 database
-- Variable name：`DB`
-- Database：`ba4thg-qso`
+```text
+Workers 和 Pages → ba4thg-qso → 设置 → 绑定
+```
 
-Variables and Secrets：
+添加 D1 数据库绑定：
+
+- 类型：D1 数据库
+- 变量名称：`DB`
+- 数据库：`ba4thg-qso`
+
+变量名称必须严格是大写 `DB`，因为后端代码读取的是 `env.DB`。
+
+## 5. 变量和机密
+
+进入：
+
+```text
+Workers 和 Pages → ba4thg-qso → 设置 → 变量和机密
+```
+
+添加：
 
 | 名称 | 类型 | 值 |
 |---|---|---|
-| `OPERATOR_CALLSIGN` | Text | `BA4THG` |
-| `ADMIN_API_TOKEN` | Secret | 至少 32 字节随机值 |
+| `OPERATOR_CALLSIGN` | 文本 | `BA4THG` |
+| `ADMIN_API_TOKEN` | 机密 | 随机管理令牌 |
 
-Windows PowerShell 可用：
+Windows PowerShell 5.1 可用下面的命令生成随机管理令牌：
 
 ```powershell
 $bytes = New-Object byte[] 32; [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes); ([BitConverter]::ToString($bytes) -replace '-','').ToLower()
 ```
 
-不要把 `ADMIN_API_TOKEN` 提交到 GitHub 或写进前端源码。
+不要把真实 `ADMIN_API_TOKEN`：
 
-## 4. 每次提交自动触发 Pages 部署
+- 发到聊天中
+- 提交到 GitHub
+- 写进网页源码
+- 放进公开截图
 
-仓库包含：
+## 6. 自动部署
 
-```text
-.github/workflows/trigger-cloudflare-pages.yml
-```
-
-该工作流会在每次 `main` 分支收到新提交后调用 Cloudflare Pages Deploy Hook。
-
-一次性配置：
-
-1. Cloudflare Pages 项目 → Settings → Builds & deployments → Deploy hooks。
-2. 创建一个 Production deploy hook，例如名称 `github-main`，分支选 `main`。
-3. 复制生成的 Deploy Hook URL。
-4. GitHub 仓库 `HX-Wrdzgzs/BA4THG-QSO` → Settings → Secrets and variables → Actions → New repository secret。
-5. Secret 名称填写：
+当前项目使用 Cloudflare Pages 自带的 Git 集成：
 
 ```text
-CLOUDFLARE_PAGES_DEPLOY_HOOK
+GitHub main 分支
+      ↓
+Cloudflare 自动检测提交
+      ↓
+自动构建并部署
+      ↓
+https://qso.mizuki.top
 ```
 
-6. Secret 值填写刚才 Cloudflare 生成的 Deploy Hook URL。
+在 Cloudflare 项目“设置”中应能看到：
 
-此 Secret 未配置时，GitHub Actions 会安全跳过显式触发，不会使工作流失败。
+```text
+生产分支：main
+自动部署：已启用
+```
 
-如果 Cloudflare 的原生 Git 集成已经稳定做到每次 `main` 提交自动部署，那么这个 Deploy Hook 工作流属于额外兜底；确认长期稳定后可以删除该 workflow，避免同一次提交产生两个部署。
+如果页面提示“此项目已与您的 Git 帐户断开连接”，需要重新授权 GitHub 中的 Cloudflare Workers and Pages 应用，并确保它有权访问：
 
-## 5. 管理后台保护
+```text
+HX-Wrdzgzs/BA4THG-QSO
+```
 
-API 本身要求 Bearer Token。正式使用时再用 Cloudflare Zero Trust Access 额外保护：
-
-- `https://qso.mizuki.top/admin.html`
-- `https://qso.mizuki.top/api/admin/*`
-
-建议只允许你的邮箱登录。
-
-## 6. 首次使用
+## 7. 第一次同步第三方记录
 
 1. 打开 `https://qso.mizuki.top/admin.html`。
-2. 输入 `ADMIN_API_TOKEN`，连接 D1。
-3. 点击“同步小程序 API”。浏览器会直接访问 `api.mzyyun.com`，因此会带 `Origin: https://qso.mizuki.top`。
-4. API 返回的近一年公开记录会再提交到本站管理 API，归档进 D1。
-5. 几年前的 QSO 使用 ADIF、CSV、JSON 或手动录入补齐。
+2. 输入管理令牌并连接档案库。
+3. 确认对方小程序“设置 → 网站接入”已经登记 `https://qso.mizuki.top`。
+4. 点击“同步近期记录”。
+5. 浏览器直接访问 `api.mzyyun.com`，第三方接口识别本站来源后返回当前可公开查询的近期记录。
+6. 浏览器再把这些记录提交给本站管理接口，保存进 D1。
+7. 以后第三方接口不再返回的旧记录，本站也不会自动删除。
 
-## 7. 备份
+如果同步出现 403，优先检查小程序中的“网站接入”是否登记了完全一致的：
+
+```text
+https://qso.mizuki.top
+```
+
+## 8. 补齐历史记录
+
+第三方公开接口只负责当前能够查询到的近期数据。更早的通联记录需要通过以下方式补齐：
+
+- ADIF 导入
+- CSV 导入
+- JSON 导入
+- 管理页面手工录入
+
+如果某条第三方同步记录后来在本站手工修改，本站修改后的内容会成为本地权威版本，后续同步不会覆盖它。
+
+## 9. 管理页面保护
+
+管理接口本身要求管理令牌。
+
+后续如果需要进一步加强保护，可以在 Cloudflare Zero Trust Access 中限制：
+
+```text
+https://qso.mizuki.top/admin.html
+https://qso.mizuki.top/api/admin/*
+```
+
+## 10. 备份
 
 建议：
 
 - 大批量导入前：导出 JSON + ADIF
-- 每周：ADIF
-- 每月：JSON
-- 至少一份保存到本地 NAS、电脑或其他云盘
+- 每周：导出 ADIF
+- 每月：导出 JSON
+- 至少一份备份放在 Cloudflare 账户之外，例如本地电脑、NAS 或其他云盘
 
 D1 是长期在线档案，但不应成为唯一副本。
