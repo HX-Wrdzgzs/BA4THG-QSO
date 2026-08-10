@@ -3,10 +3,33 @@
 
   const text=(value,fallback='—')=>value===null||value===undefined||value===''?fallback:String(value);
 
+  function errorText(error){
+    return[error?.message,error?.data?.error,error?.data?.message].filter(Boolean).map(String).join(' ');
+  }
+
+  function isSessionExpired(error){
+    if(Number(error?.status)===401)return true;
+    if(Number(error?.status)!==403)return false;
+    const message=errorText(error);
+    return/(?:会话|session\s*token|sessionToken).*(?:无效|失效|过期)|(?:无效|失效|过期).*(?:会话|session\s*token|sessionToken)/i.test(message);
+  }
+
+  function isVerifyTokenExpired(error){
+    if(Number(error?.status)!==400)return false;
+    const message=errorText(error);
+    return/核验凭证/.test(message)&&/(?:无效|失效|过期|已使用|已经使用)/.test(message);
+  }
+
+  function validPostalCode(value){
+    return value===''||/^[A-Za-z0-9 -]{1,12}$/.test(value);
+  }
+
   function apiError(error,kind='操作'){
     if(error?.status===429)return kind==='查询'?'查询较为频繁，请稍后再试。':'操作较为频繁，请稍后再试。';
     if(error?.captchaRequired||/验证码|安全验证|captcha/i.test(error?.message||''))return'验证码错误或已过期。';
-    if(error?.status===401||error?.status===403||/sessionToken|身份验证|身份/i.test(error?.message||''))return'身份验证已失效，请重新验证。';
+    if(isSessionExpired(error))return'身份验证已失效，请重新验证。';
+    if(error?.status===403)return'当前无法申请 QSL 卡片。';
+    if(error?.status===409)return'申请状态已更新，请查看最新结果。';
     if(error?.status===404)return'当前没有可申请的 QSL 卡片。';
     return'申请操作未完成，请稍后重试。';
   }
@@ -84,16 +107,22 @@
       this.lookup();
     }
 
-    async lookup(retryWithoutSession=true){
+    async lookup(retryWithoutSession=true,messageAfter=''){
       const hadSession=Boolean(this.api.qsl.getSession?.(this.callsign));
       try{
         const data=await this.api.qsl.lookup(this.callsign);
+        this.data={};
+        this.eligibleIds=[];
+        this.appliedIds=[];
+        this.appliedItems=[];
+        this.verifyToken='';
         this.capture(data);
         this.stateByMode(data.mode);
+        if(messageAfter){this.message=messageAfter;this.render();}
       }catch(error){
-        if(retryWithoutSession&&hadSession&&(error.status===401||error.status===403)){
+        if(retryWithoutSession&&hadSession&&isSessionExpired(error)){
           this.api.qsl.clearSession(this.callsign);
-          return this.lookup(false);
+          return this.lookup(false,messageAfter||'身份验证已失效，请重新验证。');
         }
         this.message=error.status===404?'当前没有可申请的 QSL 卡片。':apiError(error,'查询');
         this.state='error';
@@ -202,11 +231,13 @@
         this.busy(false);
         this.render();
       }catch(error){
-        if(address&&(error.status===401||error.status===403)){
+        if(address&&isSessionExpired(error)){
           this.api.qsl.clearSession(this.callsign);
           this.addressEditing=false;
-          this.state='error';
+          this.isBusy=false;
+          return this.lookup(false,'身份验证已失效，请重新验证。');
         }
+        if(error.status===403){this.addressEditing=false;this.state='error';}
         this.message=apiError(error);this.busy(false);this.render();
       }
     }
@@ -235,7 +266,7 @@
       const email=this.body.querySelector('[data-email]')?.value.trim()||'';
       const notifySentEmail=Boolean(this.body.querySelector('[data-notify]')?.checked);
       if(this.data.needAddress&&( !recipient||!address)){this.message='请填写收件人和邮寄地址。';this.render();return;}
-      if(postalCode&&!/^\d{6}$/.test(postalCode)){this.message='邮编格式无效。';this.render();return;}
+      if(!validPostalCode(postalCode)){this.message='邮编格式无效。';this.render();return;}
       if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){this.message='邮箱格式无效。';this.render();return;}
       if(!this.verifyToken){this.message='身份验证已失效，请重新验证。';this.render();return;}
       this.busy(true);
@@ -248,10 +279,24 @@
         this.message='申请已提交。';
         this.render();
       }catch(error){
-        if(error.status===401||error.status===403){
+        if(isVerifyTokenExpired(error)){
           this.verifyToken='';
-          this.message='身份验证已失效，请重新验证。';
-        }else this.message=apiError(error);
+          this.isBusy=false;
+          return this.lookup(true,'身份验证已失效，请重新验证。');
+        }
+        if(error.status===409){
+          this.verifyToken='';
+          this.isBusy=false;
+          return this.lookup(true,'申请状态已更新，请查看最新结果。');
+        }
+        if(isSessionExpired(error)){
+          this.api.qsl.clearSession(this.callsign);
+          this.verifyToken='';
+          this.isBusy=false;
+          return this.lookup(false,'身份验证已失效，请重新验证。');
+        }
+        if(error.status===403)this.state='error';
+        this.message=apiError(error);
         this.busy(false);
         this.render();
       }
@@ -264,7 +309,7 @@
       const email=this.body.querySelector('[data-email]')?.value.trim()||'';
       const notifySentEmail=Boolean(this.body.querySelector('[data-notify]')?.checked);
       if(!code||!address){this.message='请输入验证码和邮寄地址。';this.render();return;}
-      if(postalCode&&!/^\d{6}$/.test(postalCode)){this.message='邮编格式无效。';this.render();return;}
+      if(!validPostalCode(postalCode)){this.message='邮编格式无效。';this.render();return;}
       if(email&&!/^\S+@\S+\.\S+$/.test(email)){this.message='邮箱格式无效。';this.render();return;}
       if(!this.api.qsl.getSession(this.callsign)){this.message='身份验证已失效，请重新验证。';this.render();return;}
       this.busy(true);
@@ -273,11 +318,13 @@
         this.message='邮寄信息已更新。';
         this.authenticated({...data,mode:'status'});
       }catch(error){
-        if(error.status===401||error.status===403){
+        if(isSessionExpired(error)){
           this.api.qsl.clearSession(this.callsign);
           this.addressEditing=false;
-          this.state='error';
+          this.isBusy=false;
+          return this.lookup(false,'身份验证已失效，请重新验证。');
         }
+        if(error.status===403){this.addressEditing=false;this.state='error';}
         this.message=apiError(error);this.busy(false);this.render();
       }
     }

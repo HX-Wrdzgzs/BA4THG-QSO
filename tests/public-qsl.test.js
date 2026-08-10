@@ -146,6 +146,9 @@ test('QSL session tokens are isolated by callsign and lookup can omit one',async
   await api.qsl.lookup('BG4ABC',undefined,{includeSession:false});
   url=new URL(calls.at(-1).url);
   assert.equal(url.searchParams.has('sessionToken'),false);
+  api.qsl.clearSession('BG4ABC');
+  assert.equal(localStorage.getItem('qsl-apply-session:BG4ABC'),null);
+  assert.equal(localStorage.getItem('qsl-apply-session:BD4XYZ'),'session-b');
 });
 
 test('captcha response, captcha controller and address request use documented fields',async()=>{
@@ -285,13 +288,62 @@ test('expired session is cleared and lookup retries without the token',async()=>
   const{controller,api}=controllerFixture({fixture,QslApplyController:fixture.QslApplyController,qsl:{
     getSession:()=>lookupCount===0?'expired-session':'',
     clearSession:()=>{cleared++;},
-    lookup:async()=>{lookupCount++;if(lookupCount===1)throw{status:403};return{mode:'sms'};}
+    lookup:async()=>{lookupCount++;if(lookupCount===1)throw{status:401};return{mode:'sms'};}
   }});
   await controller.lookup();
   assert.equal(lookupCount,2);
   assert.equal(cleared,1);
   assert.equal(controller.state,'smsSend');
   assert.equal(api.qsl.getSession(),'');
+});
+
+test('ordinary 403 is an application restriction and does not clear sessionToken',async()=>{
+  let lookupCount=0;
+  let cleared=0;
+  const fixture=loadScripts(async()=>response(200,{}));
+  const{controller}=controllerFixture({fixture,QslApplyController:fixture.QslApplyController,qsl:{
+    getSession:()=> 'still-valid',
+    clearSession:()=>{cleared++;},
+    lookup:async()=>{lookupCount++;throw{status:403,message:'该手机号无法申请 QSL'};}
+  }});
+  await controller.lookup();
+  assert.equal(lookupCount,1);
+  assert.equal(cleared,0);
+  assert.equal(controller.state,'error');
+  assert.equal(controller.message,'当前无法申请 QSL 卡片。');
+});
+
+test('postalCode accepts the API character set and rejects invalid values',async()=>{
+  const fixture=loadScripts(async()=>response(200,{}));
+  async function submitPostal(postalCode){
+    let submitted=false;
+    const{controller,body}=controllerFixture({fixture,QslApplyController:fixture.QslApplyController,qsl:{
+      submit:async()=>{submitted=true;return{mode:'status',statusLabel:'待寄出'};}
+    }});
+    const fields=new Map([
+      ['[data-recipient]',{value:'张三'}],
+      ['[data-address]',{value:'南京市'}],
+      ['[data-postal]',{value:postalCode}],
+      ['[data-email]',{value:''}],
+      ['[data-notify]',{checked:false}]
+    ]);
+    body.querySelectorAll=()=>[{value:'101'}];
+    body.querySelector=selector=>fields.get(selector)||null;
+    controller.eligibleIds=[101];
+    controller.data={needAddress:false};
+    controller.verifyToken='verify-postal';
+    await controller.submit();
+    return{submitted,message:controller.message};
+  }
+
+  for(const value of['','210000','SW1A 1AA','12345-6789']){
+    assert.equal((await submitPostal(value)).submitted,true,value||'<empty>');
+  }
+  for(const value of['ABCDEFGHIJKLM','210000@']){
+    const result=await submitPostal(value);
+    assert.equal(result.submitted,false,value);
+    assert.equal(result.message,'邮编格式无效。');
+  }
 });
 
 test('submit preserves API id types, rejects non-eligible ids, validates address and clears verifyToken only after success',async()=>{
@@ -337,6 +389,75 @@ test('submit preserves API id types, rejects non-eligible ids, validates address
   controller.verifyToken='verify-4';
   await controller.submit();
   assert.equal(controller.verifyToken,'verify-4');
+});
+
+test('submit clears only invalid or used HTTP 400 verifyToken errors and refreshes lookup',async()=>{
+  const fixture=loadScripts(async()=>response(200,{}));
+  async function submitWith(error){
+    let lookupCount=0;
+    const{controller,body}=controllerFixture({fixture,QslApplyController:fixture.QslApplyController,qsl:{
+      submit:async()=>{throw error;},
+      lookup:async()=>{lookupCount++;return{mode:'mask',phoneMask:'138****5678'};}
+    }});
+    const fields=new Map([
+      ['[data-recipient]',{value:''}],
+      ['[data-address]',{value:''}],
+      ['[data-postal]',{value:''}],
+      ['[data-email]',{value:''}],
+      ['[data-notify]',{checked:false}]
+    ]);
+    body.querySelectorAll=()=>[{value:'101'}];
+    body.querySelector=selector=>fields.get(selector)||null;
+    controller.eligibleIds=[101];
+    controller.data={needAddress:false};
+    controller.verifyToken='verify-400';
+    await controller.submit();
+    return{controller,lookupCount};
+  }
+
+  for(const message of['核验凭证无效或已过期','核验凭证已使用']){
+    const result=await submitWith({status:400,message,data:{error:message}});
+    assert.equal(result.controller.verifyToken,'',message);
+    assert.equal(result.lookupCount,1,message);
+    assert.equal(result.controller.state,'maskVerify',message);
+    assert.equal(result.controller.message,'身份验证已失效，请重新验证。');
+  }
+
+  const ordinary=await submitWith({status:400,message:'邮寄地址格式错误',data:{error:'邮寄地址格式错误'}});
+  assert.equal(ordinary.controller.verifyToken,'verify-400');
+  assert.equal(ordinary.lookupCount,0);
+});
+
+test('submit HTTP 409 refreshes eligible and applied state from lookup',async()=>{
+  let lookupCount=0;
+  const fixture=loadScripts(async()=>response(200,{}));
+  const{controller,body}=controllerFixture({fixture,QslApplyController:fixture.QslApplyController,qsl:{
+    submit:async()=>{throw{status:409,message:'所选通联包含已申请的记录'};},
+    lookup:async()=>{
+      lookupCount++;
+      return{mode:'status',eligibleQsoIds:[],appliedQsoIds:[101],appliedItems:[{qsoId:101,statusLabel:'待寄出'}]};
+    }
+  }});
+  const fields=new Map([
+    ['[data-recipient]',{value:''}],
+    ['[data-address]',{value:''}],
+    ['[data-postal]',{value:''}],
+    ['[data-email]',{value:''}],
+    ['[data-notify]',{checked:false}]
+  ]);
+  body.querySelectorAll=()=>[{value:'101'}];
+  body.querySelector=selector=>fields.get(selector)||null;
+  controller.eligibleIds=[101];
+  controller.data={needAddress:false};
+  controller.verifyToken='verify-conflict';
+  await controller.submit();
+  assert.equal(lookupCount,1);
+  assert.equal(controller.verifyToken,'');
+  assert.deepEqual([...controller.eligibleIds],[]);
+  assert.deepEqual([...controller.appliedIds],['101']);
+  assert.equal(controller.appliedItems.length,1);
+  assert.equal(controller.state,'status');
+  assert.equal(controller.message,'申请状态已更新，请查看最新结果。');
 });
 
 test('status summaries never expose internal ids and show sent time/tracking',async()=>{
