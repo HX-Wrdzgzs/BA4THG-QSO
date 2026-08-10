@@ -54,6 +54,18 @@ Cloudflare D1
 5. 页面文案和示例不得使用真实通联对象的呼号、频率、地点或设备作为演示数据。
 6. 第三方近期记录只在用户主动查询对应呼号时请求，不在首页批量拉取。
 
+## QSL 申请流程
+
+公开查询使用第三方 API 的 `role=contact` 模式；只有公开查询返回通联后，页面才显示 QSL 申请入口。QSL 申请本身直接使用第三方的完整状态机：
+
+```text
+lookup → 身份核验 → verifyToken → 勾选 eligibleQsoIds → submit → status
+```
+
+`lookup` 的 `mask`、`sms`、`locked`、`session`、`status` 和 `already_sent` 六种模式都由 [`qsl-apply.js`](./qsl-apply.js) 处理。`queryToken` 仅保存在当前会话并只用于公开 QSO 第 1 页；`sessionToken` 按呼号保存到 `qsl-apply-session:<CALLSIGN>`；一次性 `verifyToken` 只保存在控制器内存中，提交成功或 API 明确返回失效时销毁。
+
+QSL 申请资格、申请记录和寄出状态以第三方 QSL API 为准。本站 D1 只负责长期 QSO 归档，不在本地模拟 QSL application record。真实 `submit` 会产生正式申请记录，验收时必须先明确测试用的 QSO，不能随意使用真实通联重复提交。
+
 ## 数据原则
 
 1. 已经同步或导入 D1 的记录长期保留。

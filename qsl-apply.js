@@ -60,8 +60,21 @@
     setItems(items){this.qsoItems=Array.isArray(items)?items.slice():[];}
 
     open(callsign,items=[]){
+      Object.values(this.timers).forEach(timer=>clearInterval(timer));
+      this.timers={};
       this.callsign=String(callsign||'').trim().toUpperCase();
       this.setItems(items);
+      this.data={};
+      this.eligibleIds=[];
+      this.appliedIds=[];
+      this.appliedItems=[];
+      this.verifyToken='';
+      this.captchaId='';
+      this.unlockMode='mask';
+      this.smsSent=false;
+      this.phone='';
+      this.addressEditing=false;
+      this.cooldowns={sms:0,address:0};
       this.root.hidden=false;
       if(this.startButton)this.startButton.hidden=true;
       this.body.hidden=false;
@@ -71,12 +84,17 @@
       this.lookup();
     }
 
-    async lookup(){
+    async lookup(retryWithoutSession=true){
+      const hadSession=Boolean(this.api.qsl.getSession?.(this.callsign));
       try{
         const data=await this.api.qsl.lookup(this.callsign);
         this.capture(data);
         this.stateByMode(data.mode);
       }catch(error){
+        if(retryWithoutSession&&hadSession&&(error.status===401||error.status===403)){
+          this.api.qsl.clearSession(this.callsign);
+          return this.lookup(false);
+        }
         this.message=error.status===404?'当前没有可申请的 QSL 卡片。':apiError(error,'查询');
         this.state='error';
         this.render();
@@ -87,7 +105,7 @@
       this.data={...this.data,...data};
       if(data.captchaId)this.captchaId=String(data.captchaId);
       if(data.sessionToken)this.api.qsl.saveSession(this.callsign,data.sessionToken);
-      if(Array.isArray(data.eligibleQsoIds))this.eligibleIds=data.eligibleQsoIds.map(value=>String(value));
+      if(Array.isArray(data.eligibleQsoIds))this.eligibleIds=data.eligibleQsoIds.slice();
       if(Array.isArray(data.appliedQsoIds))this.appliedIds=data.appliedQsoIds.map(value=>String(value));
       if(Array.isArray(data.appliedItems))this.appliedItems=data.appliedItems.slice();
       const remoteItems=data.eligibleItems||data.qsoItems||data.qsos;
@@ -104,8 +122,13 @@
           this.smsSent=false;
           break;
         case'locked':
-          this.state='locked';
           this.unlockMode=String(this.data.unlock||this.data.unlockMode||(this.data.phoneMask?'mask':'sms')).toLowerCase();
+          if(this.unlockMode!=='mask'&&this.unlockMode!=='sms'){
+            this.message='申请状态无法识别，请稍后重试。';
+            this.state='error';
+            break;
+          }
+          this.state='locked';
           break;
         case'session':
           this.authenticated(this.data);
@@ -117,8 +140,9 @@
           this.state='already_sent';
           break;
         default:
-          this.authenticated(this.data);
-          return;
+          this.message='申请状态无法识别，请稍后重试。';
+          this.state='error';
+          break;
       }
       this.render();
     }
@@ -128,7 +152,9 @@
       catch(error){
         if(!error.captchaRequired&&!error.captchaId)throw error;
         this.captchaId=error.captchaId||this.captchaId;
-        const fields=await this.captcha.verify(this.captchaId);
+        const runner=this.captcha?.run||this.captcha?.verify;
+        if(typeof runner!=='function')throw new Error('安全验证组件未就绪。');
+        const fields=await runner.call(this.captcha,this.captchaId);
         this.capture(fields);
         return action(fields);
       }
@@ -139,7 +165,7 @@
       if(data.verifyToken)this.verifyToken=String(data.verifyToken);
       this.addressEditing=false;
       this.smsSent=false;
-      this.state=data.mode==='status'?'status':'ready';
+      this.state=data.mode==='status'?'status':data.mode==='already_sent'?'already_sent':'ready';
       this.message='';
       this.render();
     }
@@ -157,10 +183,11 @@
 
     async sendSms(address=false){
       if(address){
+        if(!this.api.qsl.getSession(this.callsign)){this.message='身份验证已失效，请重新验证。';this.render();return;}
         if(this.cooldowns.address>0)return;
       }else{
         const phone=this.body.querySelector('[data-phone]')?.value.trim()||'';
-        if(!phone){this.message='请输入手机号。';this.render();return;}
+        if(!/^1[3-9]\d{9}$/.test(phone)){this.message='请输入有效的国内 11 位手机号。';this.render();return;}
         this.phone=phone;
       }
       this.busy(true);
@@ -174,13 +201,21 @@
         this.message='验证码已发送。';
         this.busy(false);
         this.render();
-      }catch(error){this.message=apiError(error);this.busy(false);this.render();}
+      }catch(error){
+        if(address&&(error.status===401||error.status===403)){
+          this.api.qsl.clearSession(this.callsign);
+          this.addressEditing=false;
+          this.state='error';
+        }
+        this.message=apiError(error);this.busy(false);this.render();
+      }
     }
 
     async verifySms(){
       const phone=this.body.querySelector('[data-phone]')?.value.trim()||this.phone;
       const code=this.body.querySelector('[data-sms-code]')?.value.trim()||'';
-      if(!phone||!code){this.message='请输入手机号和验证码。';this.render();return;}
+      if(!/^1[3-9]\d{9}$/.test(phone)){this.message='请输入有效的国内 11 位手机号。';this.render();return;}
+      if(!code){this.message='请输入短信验证码。';this.render();return;}
       this.busy(true);
       try{
         const data=await this.api.qsl.verifySms({callsign:this.callsign,phone,code});
@@ -189,25 +224,37 @@
     }
 
     async submit(){
-      const selected=[...this.body.querySelectorAll('input[name="qsoIds"]:checked')].map(input=>input.value).map(value=>/^\d+$/.test(value)?Number(value):value);
+      const selectedKeys=[...this.body.querySelectorAll('input[name="qsoIds"]:checked')].map(input=>String(input.value));
+      const eligibleByKey=new Map(this.eligibleIds.map(id=>[String(id),id]));
+      const selected=selectedKeys.map(key=>eligibleByKey.get(key));
       if(!selected.length){this.message='请至少选择一条通联。';this.render();return;}
+      if(selected.some(id=>id===undefined)||selected.length!==selectedKeys.length){this.message='所选通联不可申请，请重新选择。';this.render();return;}
       const recipient=this.body.querySelector('[data-recipient]')?.value.trim()||'';
       const address=this.body.querySelector('[data-address]')?.value.trim()||'';
       const postalCode=this.body.querySelector('[data-postal]')?.value.trim()||'';
       const email=this.body.querySelector('[data-email]')?.value.trim()||'';
       const notifySentEmail=Boolean(this.body.querySelector('[data-notify]')?.checked);
       if(this.data.needAddress&&( !recipient||!address)){this.message='请填写收件人和邮寄地址。';this.render();return;}
+      if(postalCode&&!/^\d{6}$/.test(postalCode)){this.message='邮编格式无效。';this.render();return;}
       if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){this.message='邮箱格式无效。';this.render();return;}
       if(!this.verifyToken){this.message='身份验证已失效，请重新验证。';this.render();return;}
       this.busy(true);
       try{
         const data=await this.api.qsl.submit({verifyToken:this.verifyToken,qsoIds:selected,recipientName:recipient||undefined,mailingAddress:address||undefined,postalCode:postalCode||undefined,email:email||undefined,notifySentEmail});
-        this.message='申请已提交。';
-        this.authenticated({...data,mode:'status'});
+        this.verifyToken='';
+        this.capture({...data,mode:'status'});
+        this.state='status';
+        this.isBusy=false;
         this.message='申请已提交。';
         this.render();
-      }catch(error){this.message=apiError(error);this.busy(false);this.render();}
-      finally{this.verifyToken='';}
+      }catch(error){
+        if(error.status===401||error.status===403){
+          this.verifyToken='';
+          this.message='身份验证已失效，请重新验证。';
+        }else this.message=apiError(error);
+        this.busy(false);
+        this.render();
+      }
     }
 
     async updateAddress(){
@@ -217,6 +264,7 @@
       const email=this.body.querySelector('[data-email]')?.value.trim()||'';
       const notifySentEmail=Boolean(this.body.querySelector('[data-notify]')?.checked);
       if(!code||!address){this.message='请输入验证码和邮寄地址。';this.render();return;}
+      if(postalCode&&!/^\d{6}$/.test(postalCode)){this.message='邮编格式无效。';this.render();return;}
       if(email&&!/^\S+@\S+\.\S+$/.test(email)){this.message='邮箱格式无效。';this.render();return;}
       if(!this.api.qsl.getSession(this.callsign)){this.message='身份验证已失效，请重新验证。';this.render();return;}
       this.busy(true);
@@ -224,7 +272,14 @@
         const data=await this.api.qsl.verifyAddressUpdate({callsign:this.callsign,code,mailingAddress:address,postalCode,email,notifySentEmail});
         this.message='邮寄信息已更新。';
         this.authenticated({...data,mode:'status'});
-      }catch(error){this.message=apiError(error);this.busy(false);this.render();}
+      }catch(error){
+        if(error.status===401||error.status===403){
+          this.api.qsl.clearSession(this.callsign);
+          this.addressEditing=false;
+          this.state='error';
+        }
+        this.message=apiError(error);this.busy(false);this.render();
+      }
     }
 
     editAddress(){
@@ -250,13 +305,27 @@
 
     matchItem(id,fallback){
       const found=this.qsoItems.find(item=>String(item.id)===String(id));
-      return found||fallback||{id,qsoDatetime:null,frequency:null,mode:null};
+      return found||fallback||null;
     }
 
     summary(item){
       const date=item.qsoDatetime?new Date(item.qsoDatetime):null;
       const dateText=date&&!Number.isNaN(date.getTime())?new Intl.DateTimeFormat('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit'}).format(date):'';
-      return[dateText,item.frequency,item.mode].filter(Boolean).join(' · ')||`通联 #${item.id||''}`;
+      return[dateText,item.frequency,item.mode].filter(Boolean).join(' · ')||'通联记录';
+    }
+
+    isSent(item){
+      const value=item?.qslSent??item?.qsl_sent;
+      return value===true||value===1||value==='1';
+    }
+
+    statusSummary(item){
+      const parts=[this.summary(item),this.statusLabel(item)];
+      const sentAt=item?.qslSentAt??item?.qsl_sent_at;
+      const tracking=item?.qslSentTracking??item?.qsl_sent_tracking;
+      if(sentAt)parts.push(`寄出时间：${text(sentAt)}`);
+      if(tracking)parts.push(`物流 / 单号：${text(tracking)}`);
+      return parts.join(' · ');
     }
 
     renderMessage(parent){
@@ -304,7 +373,7 @@
     renderSmsSend(parent,locked=false){
       const section=element('div','qsl-flow');
       section.append(element('p','',locked?'请输入手机号并完成短信验证：':'请输入手机号并完成短信验证：'));
-      const phone=element('input');phone.type='tel';phone.placeholder='手机号';phone.autocomplete='tel';phone.value=this.phone;phone.dataset.phone='';
+      const phone=element('input');phone.type='tel';phone.inputMode='numeric';phone.maxLength=11;phone.pattern='1[3-9][0-9]{9}';phone.placeholder='手机号';phone.autocomplete='tel';phone.value=this.phone;phone.dataset.phone='';
       const send=element('button','secondary',this.cooldowns.sms>0?`${this.cooldowns.sms} 秒后可重发`:'发送验证码');
       send.type='button';send.disabled=Boolean(this.isBusy||this.cooldowns.sms>0);send.addEventListener('click',()=>this.sendSms(false));
       const row=element('div','qsl-actions');row.append(phone,send);section.append(row);parent.append(section);
@@ -313,14 +382,14 @@
     renderSmsVerify(parent){
       const section=element('div','qsl-flow');
       section.append(element('p','', '请输入短信验证码：'));
-      const phone=element('input');phone.type='tel';phone.placeholder='手机号';phone.autocomplete='tel';phone.value=this.phone;phone.dataset.phone='';
+      const phone=element('input');phone.type='tel';phone.inputMode='numeric';phone.maxLength=11;phone.pattern='1[3-9][0-9]{9}';phone.placeholder='手机号';phone.autocomplete='tel';phone.value=this.phone;phone.dataset.phone='';
       const code=element('input');code.type='text';code.inputMode='numeric';code.maxLength=8;code.placeholder='验证码';code.autocomplete='one-time-code';code.dataset.smsCode='';
       const verify=element('button','primary',this.isBusy?'验证中……':'验证');verify.type='button';verify.disabled=Boolean(this.isBusy);verify.addEventListener('click',()=>this.verifySms());
       const row=element('div','qsl-actions');row.append(phone,code,verify);section.append(row);parent.append(section);
     }
 
     renderReady(parent){
-      const available=this.eligibleIds.map(id=>({id,item:this.matchItem(id)})).filter(entry=>!this.appliedIds.includes(String(entry.id))&&!entry.item.qslSent);
+      const available=this.eligibleIds.map(id=>({id,item:this.matchItem(id)})).filter(entry=>entry.item&&!this.appliedIds.includes(String(entry.id))&&!this.isSent(entry.item));
       if(!available.length){this.state='already_sent';this.renderAlreadySent(parent);return;}
       const section=element('div','qsl-flow');
       section.append(element('p','qsl-help','请选择要申请的通联（不会自动全选）：'));
@@ -336,7 +405,7 @@
       const address=addField(fields,'邮寄地址',this.data.mailingAddress||'',Boolean(this.data.needAddress));address.dataset.address='';
       const postal=addField(fields,'邮编',this.data.postalCode||'');postal.dataset.postal='';
       const email=addField(fields,'邮箱',this.data.email||'');email.type='email';email.dataset.email='';
-      const notify=element('label','check');const notifyInput=element('input');notifyInput.type='checkbox';notifyInput.checked=this.data.notifySentEmail!==false;notifyInput.dataset.notify='';notify.append(notifyInput,element('span','', '接收寄出通知'));fields.append(notify);
+      const notify=element('label','check');const notifyInput=element('input');notifyInput.type='checkbox';notifyInput.checked=Boolean(this.data.qslSentEmailNotify);notifyInput.dataset.notify='';notify.append(notifyInput,element('span','', '接收寄出通知'));fields.append(notify);
       section.append(fields);
       const submit=element('button','primary',this.isBusy?'提交中……':'提交申请');submit.type='button';submit.disabled=Boolean(this.isBusy);submit.addEventListener('click',()=>this.submit());section.append(submit);
       parent.append(section);
@@ -344,16 +413,20 @@
 
     renderStatus(parent){
       const section=element('div','qsl-flow');
-      section.append(element('p','',`申请状态：${this.data.statusLabel||'待寄出'}`));
+      section.append(element('p','',`申请状态：${this.statusLabel(this.data)}`));
       const summary=element('div','qsl-private-summary');
       for(const [label,value] of [['收件人',this.data.recipientName||this.data.recipientNameMask],['邮寄地址',this.data.mailingAddress||this.data.mailingAddressMask],['邮编',this.data.postalCode||this.data.postalCodeMask],['邮箱',this.data.email||this.data.emailMask]]){
         if(value)summary.append(element('p','',`${label}：${value}`));
       }
       if(summary.childElementCount)section.append(summary);
+      const sentAt=this.data.qslSentAt??this.data.qsl_sent_at;
+      const tracking=this.data.qslSentTracking??this.data.qsl_sent_tracking;
+      if(sentAt)section.append(element('p','',`寄出时间：${text(sentAt)}`));
+      if(tracking)section.append(element('p','',`物流 / 单号：${text(tracking)}`));
       const applied=this.appliedItems.length?this.appliedItems:this.data.appliedItems||[];
       if(applied.length){
         const list=element('ul','qsl-applied-list');
-        applied.forEach(item=>list.append(element('li','',`${this.summary({...item,id:item.qsoId||item.id})} · ${this.statusLabel(item)}${item.qslSentTracking?` · 物流 / 单号：${item.qslSentTracking}`:''}`)));
+        applied.forEach(item=>list.append(element('li','',this.statusSummary(item))));
         section.append(element('p','qsl-help','已申请通联：'),list);
       }
       if(this.api.qsl.getSession(this.callsign)){
@@ -363,15 +436,16 @@
     }
 
     statusLabel(item){
-      if(typeof item==='string')return item==='sent'?'已寄出':'待寄出';
-      return item?.qslSent||item?.applicationStatus==='sent'||item?.statusLabel==='已寄出'?'已寄出':item?.statusLabel||'待寄出';
+      if(this.isSent(item))return'已寄出';
+      if(item?.statusLabel&&item.statusLabel!=='已寄出')return String(item.statusLabel);
+      return'待寄出';
     }
 
     renderAlreadySent(parent){
       const section=element('div','qsl-flow');
       section.append(element('p','', '当前没有可申请的 QSL 卡片。'));
       const applied=this.appliedItems.length?this.appliedItems:this.data.appliedItems||[];
-      if(applied.length){const list=element('ul','qsl-applied-list');applied.forEach(item=>list.append(element('li','',`${this.summary({...item,id:item.qsoId||item.id})} · ${this.statusLabel(item)}`)));section.append(list);}
+      if(applied.length){const list=element('ul','qsl-applied-list');applied.forEach(item=>list.append(element('li','',this.statusSummary(item))));section.append(list);}
       parent.append(section);
     }
 
@@ -389,7 +463,7 @@
       const address=addField(fields,'邮寄地址','',true);address.dataset.address='';
       const postal=addField(fields,'邮编','');postal.dataset.postal='';
       const email=addField(fields,'邮箱',this.data.email||'');email.type='email';email.dataset.email='';
-      const notify=element('label','check');const notifyInput=element('input');notifyInput.type='checkbox';notifyInput.checked=this.data.notifySentEmail!==false;notifyInput.dataset.notify='';notify.append(notifyInput,element('span','', '接收寄出通知'));fields.append(notify);
+      const notify=element('label','check');const notifyInput=element('input');notifyInput.type='checkbox';notifyInput.checked=Boolean(this.data.qslSentEmailNotify);notifyInput.dataset.notify='';notify.append(notifyInput,element('span','', '接收寄出通知'));fields.append(notify);
       section.append(fields);
       const button=element('button','primary',this.isBusy?'保存中……':'验证并保存');button.type='button';button.disabled=Boolean(this.isBusy);button.addEventListener('click',()=>this.updateAddress());section.append(button);parent.append(section);
     }

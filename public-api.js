@@ -66,7 +66,9 @@
   function saveQueryToken(token,expiresInSeconds=900){
     if(!token)return;
     try{
-      sessionStorage.setItem(QUERY_TOKEN_KEY,JSON.stringify({token,expiresAt:Date.now()+1000*Math.max(60,Number(expiresInSeconds)||900)}));
+      const seconds=Number(expiresInSeconds);
+      const lifetime=Number.isFinite(seconds)&&seconds>0?seconds:900;
+      sessionStorage.setItem(QUERY_TOKEN_KEY,JSON.stringify({token,expiresAt:Date.now()+1000*lifetime}));
     }catch{}
   }
 
@@ -99,7 +101,7 @@
   }
 
   class CaptchaController{
-    async verify(captchaId){
+    async run(captchaId){
       if(!captchaId)throw new Error('请先完成安全验证。');
       await loadCaptchaScript();
       if(typeof global.initAlicom4!=='function')throw new Error('安全验证组件未就绪。');
@@ -124,6 +126,8 @@
         });
       });
     }
+
+    verify(captchaId){return this.run(captchaId);}
   }
 
   const captcha=new CaptchaController();
@@ -135,8 +139,9 @@
   }
 
   async function fetchPublicQso({callsign,page=1,role='contact',limit=20,queryToken,signal}={}){
-    const params=new URLSearchParams({callsign:String(callsign||''),role,page:String(page),limit:String(limit)});
-    if(Number(page)===1){
+    const currentPage=Math.max(1,Number.parseInt(page,10)||1);
+    const params=new URLSearchParams({callsign:String(callsign||''),role,page:String(currentPage),limit:String(limit)});
+    if(currentPage===1){
       const token=queryToken||getQueryToken();
       if(token)params.set('queryToken',token);
     }
@@ -147,9 +152,9 @@
     getSession:callsign=>getQslSession(callsign),
     saveSession:(callsign,token)=>saveQslSession(callsign,token),
     clearSession:callsign=>clearQslSession(callsign),
-    lookup(callsign,signal){
+    lookup(callsign,signal,options={}){
       const params=new URLSearchParams({callsign:String(callsign||'')});
-      const session=getQslSession(callsign);
+      const session=Object.prototype.hasOwnProperty.call(options,'sessionToken')?String(options.sessionToken||''):(options.includeSession===false?'':getQslSession(callsign));
       if(session)params.set('sessionToken',session);
       return request(`/public/qsl-apply/lookup?${params}`,signal?{signal}:{});
     },

@@ -90,7 +90,9 @@ function normalizeLive(item){
     myGrid:item.myGrid??item.my_grid??null,
     theirGrid:item.theirGrid??item.their_grid??item.grid??null,
     myPower:item.myPower??item.myPowerW??item.my_power_w??null,
-    theirPower:item.theirPower??item.theirPowerW??item.their_power_w??null
+    theirPower:item.theirPower??item.theirPowerW??item.their_power_w??null,
+    qslSent:item.qslSent??item.qsl_sent??false,
+    qslReceived:item.qslReceived??item.qsl_received??false
   };
 }
 
@@ -141,7 +143,7 @@ async function livePage(callsign,page){
   catch(error){
     if(page===1&&error.captchaRequired&&error.captchaId){
       try{
-        const fields=await API.captcha.verify(error.captchaId);
+        const fields=await API.captcha.run(error.captchaId);
         const result=await API.verifyQueryCaptcha(fields);
         return API.fetchPublicQso({callsign,page,role:'contact',limit:state.limit,queryToken:result.queryToken});
       }catch(captchaError){
@@ -210,7 +212,8 @@ async function load(){
       errorBox.textContent='历史记录暂时无法读取，已显示当前可用记录。';
       errorBox.hidden=false;
     }
-    if(state.total>0){
+    const qslHasPublicQso=liveResult.status==='fulfilled'&&Number(live.total||liveItems.length||0)>0;
+    if(qslHasPublicQso){
       qslPanel.hidden=false;
       qsl.setItems(combined);
       qsl.callsign=callsign;
