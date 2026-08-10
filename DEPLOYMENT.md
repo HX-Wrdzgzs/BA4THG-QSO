@@ -121,20 +121,8 @@ Workers 和 Pages → ba4thg-qso → 设置 → 变量和机密
 | 名称 | 类型 | 值 |
 |---|---|---|
 | `OPERATOR_CALLSIGN` | 文本 | `BA4THG` |
-| `ADMIN_API_TOKEN` | 机密 | 随机管理令牌 |
 
-Windows PowerShell 5.1 可用下面的命令生成随机管理令牌：
-
-```powershell
-$bytes = New-Object byte[] 32; [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes); ([BitConverter]::ToString($bytes) -replace '-','').ToLower()
-```
-
-不要把真实 `ADMIN_API_TOKEN`：
-
-- 发到聊天中
-- 提交到 GitHub
-- 写进网页源码
-- 放进公开截图
+本项目不再配置或使用 `ADMIN_API_TOKEN`。公开查询不需要站点机密；管理端安全边界由下一节的 Cloudflare Access 提供。
 
 ## 6. 自动部署
 
@@ -165,8 +153,8 @@ HX-Wrdzgzs/BA4THG-QSO
 
 ## 7. 第一次同步第三方记录
 
-1. 打开 `https://qso.mizuki.top/admin.html`。
-2. 输入管理令牌并连接档案库。
+1. 打开 `https://qso.mizuki.top/admin.html`，完成管理端访问策略要求的登录。
+2. 进入“记录管理”。
 3. 确认对方小程序“设置 → 网站接入”已经登记 `https://qso.mizuki.top`。
 4. 点击“同步近期记录”。
 5. 浏览器直接访问 `api.mzyyun.com`，第三方接口识别本站来源后返回当前可公开查询的近期记录。
@@ -192,13 +180,34 @@ https://qso.mizuki.top
 
 ## 9. 管理页面保护
 
-管理接口本身要求管理令牌。
+管理端必须使用 Cloudflare Access 作为唯一的登录和安全边界。删除页面令牌并不等于开放管理接口；部署完成前不要把下列路径提供给未登录访客。
 
-后续如果需要进一步加强保护，可以在 Cloudflare Zero Trust Access 中限制：
+在 Cloudflare 控制台中进入：
+
+```text
+Zero Trust → Access → 应用程序 → 添加自托管应用
+```
+
+创建一个覆盖正式域名的应用，至少添加两条路径：
 
 ```text
 https://qso.mizuki.top/admin.html
 https://qso.mizuki.top/api/admin/*
+```
+
+策略建议：
+
+- 动作：允许
+- 规则：只允许管理员的邮箱、邮箱组或身份提供商用户组
+- 未匹配策略：拒绝
+
+保存后，从未登录浏览器访问 `admin.html` 应先被访问策略拦截；登录后页面直接打开“记录管理”。同一策略必须覆盖 `/api/admin/*`，否则即使页面受到保护，管理接口也可能被单独调用。
+
+公开路径保持不受管理策略影响：
+
+```text
+/
+/api/public/*
 ```
 
 ## 10. 备份

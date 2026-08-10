@@ -7,8 +7,9 @@
   <meta name="theme-color" content="#f6f7f8">
   <title>BA4THG · 记录管理</title>
   <link rel="icon" type="image/svg+xml" href="./assets/ba4thg-mark.svg">
-  <link rel="stylesheet" href="./styles.css?v=20260808-7">
-  <script src="./admin.js?v=20260808-8" defer></script>
+  <link rel="stylesheet" href="./styles.css?v=20260810-1">
+  <script src="./public-api.js?v=20260810-1" defer></script>
+  <script src="./admin.js?v=20260810-1" defer></script>
 </head>
 <body class="admin-page">
 <header class="site-header">
@@ -24,16 +25,14 @@
 <main>
   <section class="page-heading">
     <h1>记录管理</h1>
-    <p>请输入管理令牌继续。</p>
+    <p>管理工具正在准备。</p>
   </section>
 
-  <section class="auth panel" aria-label="管理认证">
-    <label>
-      <span>管理令牌</span>
-      <input type="password" data-token autocomplete="off" placeholder="输入管理令牌">
-    </label>
-    <button class="primary" type="button" data-connect>验证</button>
-    <span data-connection>尚未验证</span>
+  <section class="notice" data-admin-loading>正在准备记录管理……</section>
+  <section class="notice error" data-admin-denied hidden>当前无法打开记录管理。</section>
+
+  <section class="admin-connection" aria-live="polite" hidden>
+    <span data-connection>已准备</span>
   </section>
 
   <div data-admin-content hidden>
@@ -110,9 +109,9 @@
   </div>
 </main>
 
-<footer>
-  <p><strong>BA4THG</strong> · 记录管理</p>
-  <p>请妥善保管管理令牌。</p>
-</footer>
+  <footer>
+    <p><strong>BA4THG</strong> · 记录管理</p>
+    <p>请仅在受保护的管理环境中使用。</p>
+  </footer>
 </body>
 </html>

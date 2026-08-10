@@ -3,7 +3,7 @@
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
-  Content-Security-Policy: default-src 'self'; base-uri 'self'; connect-src 'self' https://api.mzyyun.com; font-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; object-src 'none'; script-src 'self'; style-src 'self'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; base-uri 'self'; connect-src 'self' https://api.mzyyun.com https://*.alicaptcha.com; font-src 'self'; form-action 'self'; frame-ancestors 'none'; frame-src https://*.alicaptcha.com; img-src 'self' data: https://*.alicaptcha.com; object-src 'none'; script-src 'self' https://static.alicaptcha.com; style-src 'self' 'unsafe-inline'; upgrade-insecure-requests
 
 /index.html
   Cache-Control: no-cache, must-revalidate

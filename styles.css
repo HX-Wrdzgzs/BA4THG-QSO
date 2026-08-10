@@ -287,6 +287,49 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 }
 .pagination span { color: var(--muted); font-size: 12px; }
 
+.qsl-section {
+  margin-top: 24px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.qsl-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.qsl-heading h2 { margin: 0; font-size: 18px; }
+.qsl-heading p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+.qsl-body { margin-top: 16px; }
+.qsl-flow { display: grid; gap: 12px; }
+.qsl-flow > p { margin: 0; font-size: 13px; }
+.qsl-help { color: var(--muted); font-size: 12px !important; }
+.qsl-message { margin: 12px 0 0; color: var(--danger); font-size: 12px; }
+.qsl-actions { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
+.qsl-actions input { width: min(100%, 220px); }
+.qsl-choice-list { display: grid; gap: 8px; }
+.qsl-choice {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fbfcfd;
+}
+.qsl-choice input { width: 18px; min-height: 18px; accent-color: var(--accent); }
+.qsl-choice span { font-family: "Cascadia Mono", Consolas, monospace; font-size: 12px; overflow-wrap: anywhere; }
+.qsl-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.qsl-form-grid .check { grid-column: 1 / -1; }
+.qsl-private-summary { padding: 10px 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--soft); }
+.qsl-private-summary p { margin: 3px 0; font-size: 12px; overflow-wrap: anywhere; }
+.qsl-applied-list { display: grid; gap: 7px; margin: 0; padding-left: 20px; color: var(--muted); font-size: 12px; }
+
 .site-footer,
 .admin-page footer {
   width: min(100%, var(--admin-page));
@@ -422,6 +465,10 @@ textarea { resize: vertical; }
   .entry-grid { grid-template-columns: 1fr; }
   .entry-grid .wide { grid-column: auto; }
   .admin-page .record-details { grid-template-columns: 1fr; }
+  .qsl-heading { display: grid; }
+  .qsl-heading .secondary { width: 100%; }
+  .qsl-form-grid { grid-template-columns: 1fr; }
+  .qsl-form-grid .check { grid-column: auto; }
 }
 
 @media (max-width: 420px) {

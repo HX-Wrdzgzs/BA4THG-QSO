@@ -7,8 +7,10 @@
   <meta name="theme-color" content="#f7f8fa">
   <title>BA4THG · 通联日志</title>
   <link rel="icon" type="image/svg+xml" href="./assets/ba4thg-mark.svg">
-  <link rel="stylesheet" href="./styles.css?v=20260808-7">
-  <script src="./app.js?v=20260808-7" defer></script>
+  <link rel="stylesheet" href="./styles.css?v=20260810-1">
+  <script src="./public-api.js?v=20260810-1" defer></script>
+  <script src="./qsl-apply.js?v=20260810-1" defer></script>
+  <script src="./app.js?v=20260810-1" defer></script>
 </head>
 <body class="public-page">
 <header class="site-header">
@@ -56,6 +58,17 @@
       <span data-page-label></span>
       <button type="button" data-next>下一页</button>
     </nav>
+  </section>
+
+  <section class="qsl-section" data-qsl-panel hidden aria-labelledby="qsl-title">
+    <div class="qsl-heading">
+      <div>
+        <h2 id="qsl-title">申请 QSL 卡片</h2>
+        <p data-qsl-message>查询到通联记录后可以申请卡片。</p>
+      </div>
+      <button class="secondary" type="button" data-qsl-start>申请 QSL 卡片</button>
+    </div>
+    <div class="qsl-body" data-qsl-body hidden></div>
   </section>
 </main>
 
