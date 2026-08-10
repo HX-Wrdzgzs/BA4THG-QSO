@@ -121,8 +121,10 @@ Workers 和 Pages → ba4thg-qso → 设置 → 变量和机密
 | 名称 | 类型 | 值 |
 |---|---|---|
 | `OPERATOR_CALLSIGN` | 文本 | `BA4THG` |
+| `ACCESS_TEAM_DOMAIN` | 文本 | `https://<team-name>.cloudflareaccess.com` |
+| `ACCESS_AUD` | 文本 | Access 应用的 Application Audience (AUD) Tag |
 
-本项目不再配置或使用 `ADMIN_API_TOKEN`。公开查询不需要站点机密；管理端安全边界由下一节的 Cloudflare Access 提供。
+`ACCESS_TEAM_DOMAIN` 和 `ACCESS_AUD` 不是机密，但必须填写当前 Cloudflare Access 环境的真实值，不能保留示例占位符。本项目不再配置或使用 `ADMIN_API_TOKEN`。公开查询不需要站点机密；管理端安全边界由下一节的 Cloudflare Access 提供。
 
 ## 6. 自动部署
 
@@ -182,6 +184,10 @@ https://qso.mizuki.top
 
 管理端必须使用 Cloudflare Access 作为唯一的登录和安全边界。删除页面令牌并不等于开放管理接口；部署完成前不要把下列路径提供给未登录访客。
 
+Pages Functions 对每个管理请求都只接受 Cloudflare Access 注入的 `Cf-Access-Jwt-Assertion`，使用 `ACCESS_TEAM_DOMAIN/cdn-cgi/access/certs` 的 JWKS 校验 JWT 签名，并同时校验 issuer（必须等于 `ACCESS_TEAM_DOMAIN`）和 audience（必须等于 `ACCESS_AUD`）。`Cf-Access-Authenticated-User-Email`、自定义 email header 以及“只判断 header 存在”的逻辑都不会被信任。
+
+`ACCESS_TEAM_DOMAIN` 或 `ACCESS_AUD` 缺失、格式无效，JWT 缺失、签名错误、issuer 错误或 AUD 错误，管理接口都会 fail closed 返回 HTTP 403；不会因为无法读取配置而放行。
+
 在 Cloudflare 控制台中进入：
 
 ```text
@@ -204,6 +210,8 @@ https://qso.mizuki.top/api/admin/*
 保存后，从未登录浏览器访问 `admin.html` 应先被访问策略拦截；登录后页面直接打开“记录管理”。同一策略必须覆盖 `/api/admin/*`，否则即使页面受到保护，管理接口也可能被单独调用。
 
 公开路径保持不受管理策略影响：
+
+部署后应至少验证以下结果：未带 JWT、使用错误签名、错误 issuer、错误 AUD，以及临时移除任一 Access 环境变量时，`/api/admin/session` 和其他 `/api/admin/*` 都返回 403；只有 Access 签发且通过完整校验的 JWT 才能继续执行管理操作。
 
 ```text
 /

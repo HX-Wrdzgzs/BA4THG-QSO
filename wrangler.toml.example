@@ -4,6 +4,10 @@ pages_build_output_dir = "."
 
 [vars]
 OPERATOR_CALLSIGN = "BA4THG"
+# Cloudflare Access team domain and Application Audience (AUD) Tag.
+# Replace both placeholders in the Pages environment; neither value is a secret.
+ACCESS_TEAM_DOMAIN = "https://REPLACE_WITH_ACCESS_TEAM_DOMAIN"
+ACCESS_AUD = "REPLACE_WITH_ACCESS_APPLICATION_AUD"
 
 [[d1_databases]]
 binding = "DB"

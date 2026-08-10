@@ -68,6 +68,8 @@ Cloudflare D1
 
 管理页面和 `/api/admin/*` 由 Cloudflare Access 统一保护，不再使用 `ADMIN_API_TOKEN` 或页面内的管理令牌。
 
+管理 Functions 使用 `jose` 验证 `Cf-Access-Jwt-Assertion` 的签名、issuer 和 Access Application Audience。部署时必须配置 `ACCESS_TEAM_DOMAIN` 与 `ACCESS_AUD`；配置缺失或 JWT 校验失败时管理接口统一返回 403。
+
 ## 自动部署
 
 Cloudflare Pages 已连接 GitHub 的 `main` 分支并启用自动部署。以后只要向 `main` 提交修改，Cloudflare Pages 会自动重新部署，不再使用额外的 GitHub Actions 部署挂钩。
