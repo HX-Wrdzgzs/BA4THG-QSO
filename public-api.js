@@ -148,22 +148,43 @@
     return request(`/public/qso?${params}`,signal?{signal}:{});
   }
 
+  // QSL 图形验证的 captchaId 由 lookup 返回。文档要求后续受保护操作直接携带验证码结果，
+  // 因此不能依赖“先裸请求失败后，错误响应再次返回 captchaId”。按呼号保存，避免不同查询串线。
+  const qslCaptchaByCallsign=new Map();
+  function normalizeQslCallsign(callsign){return String(callsign||'').trim().toUpperCase();}
+  function rememberQslCaptcha(callsign,data){
+    const key=normalizeQslCallsign(callsign);
+    if(!key)return;
+    if(data?.captchaId)qslCaptchaByCallsign.set(key,String(data.captchaId));
+  }
+  function hasCaptchaFields(fields){
+    return Boolean(fields&&fields.lotNumber&&fields.captchaOutput&&fields.passToken&&fields.genTime);
+  }
+  async function qslCaptchaFields(callsign,fields={}){
+    if(hasCaptchaFields(fields))return fields;
+    const captchaId=qslCaptchaByCallsign.get(normalizeQslCallsign(callsign))||'';
+    if(!captchaId)return fields;
+    return captcha.run(captchaId);
+  }
+
   const qsl={
     getSession:callsign=>getQslSession(callsign),
     saveSession:(callsign,token)=>saveQslSession(callsign,token),
     clearSession:callsign=>clearQslSession(callsign),
-    lookup(callsign,signal,options={}){
+    async lookup(callsign,signal,options={}){
       const params=new URLSearchParams({callsign:String(callsign||'')});
       const session=Object.prototype.hasOwnProperty.call(options,'sessionToken')?String(options.sessionToken||''):(options.includeSession===false?'':getQslSession(callsign));
       if(session)params.set('sessionToken',session);
-      return request(`/public/qsl-apply/lookup?${params}`,signal?{signal}:{});
+      const data=await request(`/public/qsl-apply/lookup?${params}`,signal?{signal}:{});
+      rememberQslCaptcha(callsign,data);
+      return data;
     },
-    unlock({callsign,middleDigits,captchaFields={}}){return request('/public/qsl-apply/unlock',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({callsign,middleDigits,...captchaFields})});},
-    verifyPhone({callsign,middleDigits,captchaFields={}}){return request('/public/qsl-apply/verify-phone',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({callsign,middleDigits,...captchaFields})});},
-    sendSms({callsign,phone,captchaFields={}}){return request('/public/qsl-apply/send-sms',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({callsign,phone,...captchaFields})});},
+    async unlock({callsign,middleDigits,captchaFields={}}){const fields=await qslCaptchaFields(callsign,captchaFields);return request('/public/qsl-apply/unlock',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({callsign,middleDigits,...fields})});},
+    async verifyPhone({callsign,middleDigits,captchaFields={}}){const fields=await qslCaptchaFields(callsign,captchaFields);return request('/public/qsl-apply/verify-phone',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({callsign,middleDigits,...fields})});},
+    async sendSms({callsign,phone,captchaFields={}}){const fields=await qslCaptchaFields(callsign,captchaFields);return request('/public/qsl-apply/send-sms',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({callsign,phone,...fields})});},
     verifySms({callsign,phone,code}){return request('/public/qsl-apply/verify-sms',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({callsign,phone,code})});},
     submit({verifyToken,qsoIds,recipientName,mailingAddress,postalCode,email,notifySentEmail}){return request('/public/qsl-apply/submit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({verifyToken,qsoIds,recipientName,mailingAddress,postalCode,email,notifySentEmail})});},
-    sendAddressSms({callsign,captchaFields={}}){return request('/public/qsl-apply/address/send-sms',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({callsign,sessionToken:getQslSession(callsign),...captchaFields})});},
+    async sendAddressSms({callsign,captchaFields={}}){const fields=await qslCaptchaFields(callsign,captchaFields);return request('/public/qsl-apply/address/send-sms',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({callsign,sessionToken:getQslSession(callsign),...fields})});},
     verifyAddressUpdate({callsign,code,mailingAddress,postalCode,email,notifySentEmail}){return request('/public/qsl-apply/address/verify-update',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({callsign,sessionToken:getQslSession(callsign),code,mailingAddress,postalCode,email,notifySentEmail})});}
   };
 
