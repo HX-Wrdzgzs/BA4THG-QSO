@@ -14,6 +14,12 @@
 /app.js
   Cache-Control: no-cache, must-revalidate
 
+/public-api.js
+  Cache-Control: no-cache, must-revalidate
+
+/qsl-apply.js
+  Cache-Control: no-cache, must-revalidate
+
 /admin.js
   Cache-Control: no-store
 
