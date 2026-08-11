@@ -5,7 +5,7 @@
 将本仓库连接到 Cloudflare Pages，使用以下设置：
 
 - 框架预设：无
-- 构建命令：留空
+- 构建命令：`npm ci --ignore-scripts --no-audit --no-fund`
 - 构建输出目录：`.`
 - 根目录：仓库根目录
 - 生产分支：`main`
@@ -18,6 +18,8 @@ qso.mizuki.top
 ```
 
 GitHub 与 Cloudflare Pages 已连接后，每次向 `main` 提交修改，Cloudflare 会自动重新部署，不需要再配置额外的部署挂钩或 GitHub Actions。
+
+构建命令必须保留。Pages 在没有构建命令时会跳过依赖安装，Pages Functions 无法解析服务端依赖（包括 `jose`）。
 
 ## 2. 第三方小程序网站接入
 
