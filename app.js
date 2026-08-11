@@ -15,8 +15,9 @@ const meta=document.querySelector('[data-result-meta]');
 const qslPanel=document.querySelector('[data-qsl-panel]');
 const qslStart=document.querySelector('[data-qsl-start]');
 
-const state={page:1,limit:20,total:0,busy:false,callsign:'',items:[]};
+const state={page:1,limit:20,total:0,busy:false,callsign:'',items:[],liveTotal:0,livePages:new Map()};
 const qsl=new window.QslApplyController(qslPanel,API,API.captcha);
+const originalQslOpen=qsl.open.bind(qsl);
 
 const text=(value,fallback='—')=>value===null||value===undefined||value===''?fallback:String(value);
 const normalizeCallsign=value=>String(value||'').trim().toUpperCase().replace(/\s+/g,'');
@@ -119,6 +120,8 @@ function reset(message='请输入呼号开始查询。'){
   state.total=0;
   state.callsign='';
   state.items=[];
+  state.liveTotal=0;
+  state.livePages.clear();
   list.replaceChildren();
   loading.hidden=true;
   errorBox.hidden=true;
@@ -156,6 +159,48 @@ async function livePage(callsign,page){
   }
 }
 
+function cacheLivePage(callsign,page,data){
+  if(state.callsign!==callsign)return;
+  const items=(data?.items||[]).map(normalizeLive);
+  state.livePages.set(page,items);
+  state.liveTotal=Math.max(state.liveTotal,Number(data?.total||0));
+}
+
+async function allLiveQsoForQsl(callsign){
+  if(state.callsign!==callsign)return[];
+  const pages=Math.max(1,Math.ceil(state.liveTotal/state.limit));
+  for(let page=1;page<=pages;page++){
+    if(state.livePages.has(page))continue;
+    const data=await livePage(callsign,page);
+    cacheLivePage(callsign,page,data);
+  }
+  const byId=new Map();
+  for(const items of state.livePages.values()){
+    for(const item of items){
+      const key=String(item.id??recordKey(item));
+      if(!byId.has(key))byId.set(key,item);
+    }
+  }
+  return[...byId.values()].sort((a,b)=>new Date(b.qsoDatetime)-new Date(a.qsoDatetime));
+}
+
+qsl.open=async function(callsign,items=[]){
+  const normalized=normalizeCallsign(callsign);
+  const oldText=qslStart.textContent;
+  qslStart.disabled=true;
+  qslStart.textContent='正在准备……';
+  try{
+    const liveItems=await allLiveQsoForQsl(normalized);
+    return originalQslOpen(normalized,liveItems.length?liveItems:items);
+  }catch(error){
+    console.error('QSL 通联明细补全失败',error);
+    return originalQslOpen(normalized,items);
+  }finally{
+    qslStart.disabled=false;
+    qslStart.textContent=oldText||'申请 QSL 卡片';
+  }
+};
+
 function renderPages(){
   const pages=Math.max(1,Math.ceil(state.total/state.limit));
   pageLabel.textContent=`第 ${state.page} / ${pages} 页`;
@@ -177,6 +222,10 @@ async function load(){
     return;
   }
 
+  if(state.callsign&&state.callsign!==callsign){
+    state.liveTotal=0;
+    state.livePages.clear();
+  }
   state.busy=true;
   state.callsign=callsign;
   loading.hidden=false;
@@ -194,6 +243,7 @@ async function load(){
     const live=liveResult.status==='fulfilled'?liveResult.value:{items:[],total:0};
     const archiveItems=archive.items||[];
     const liveItems=(live.items||[]).map(normalizeLive);
+    if(liveResult.status==='fulfilled')cacheLivePage(callsign,state.page,live);
     const seen=new Set();
     const combined=[...liveItems,...archiveItems].filter(item=>{const key=recordKey(item);if(seen.has(key))return false;seen.add(key);return true;}).sort((a,b)=>new Date(b.qsoDatetime)-new Date(a.qsoDatetime));
     if(archiveResult.status==='rejected'&&liveResult.status==='rejected')throw new Error('查询暂时无法完成，请稍后重试。');
@@ -215,7 +265,7 @@ async function load(){
     const qslHasPublicQso=liveResult.status==='fulfilled'&&Number(live.total||liveItems.length||0)>0;
     if(qslHasPublicQso){
       qslPanel.hidden=false;
-      qsl.setItems(combined);
+      qsl.setItems(liveItems);
       qsl.callsign=callsign;
       qslStart.hidden=false;
       qsl.body.hidden=true;
