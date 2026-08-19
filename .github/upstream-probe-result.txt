@@ -1,0 +1,7 @@
+checked_at=2026-08-19T10:33:25Z
+http_status=500
+headers:
+server: ESA
+content-type: application/json; charset=utf-8
+summary:
+{"error": "Internal Server Error", "total": null, "page": null, "limit": null, "captchaRequired": null, "hasItems": false, "itemCount": 0}
