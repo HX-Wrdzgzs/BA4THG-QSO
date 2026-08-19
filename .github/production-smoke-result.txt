@@ -1,12 +1,17 @@
-checked_at=2026-08-19T10:57:21Z
+checked_at=2026-08-19T11:00:49Z
 pages_target_version_seen=1
 pages_http_status=200
 pages_content-type: application/json; charset=utf-8
 pages_server: cloudflare
-pages_cf-ray: a2d8a2fe39c0cf2f-SJC
+pages_cf-ray: a2d8a80d3b9315d6-SJC
 pages_summary={"error": null, "station": "BA4THG", "search": "BA4VRM", "total": 4, "itemCount": 4, "source": "本站长期档案", "stale": true, "complete": false, "degraded": true, "upstreamStatus": 500, "upstreamOk": false, "fallbackOk": false, "fallbackKind": "verified-reciprocal-snapshot", "fallbackFetched": null, "fallbackInserted": null, "fallbackUpdated": null, "fallbackLinked": null, "fallbackRejected": null}
-custom_http_status=403
-custom_content-type: text/html; charset=UTF-8
-custom_cf-mitigated: challenge
-custom_server: cloudflare
-custom_cf-ray: a2d8a3113a818486-SJC
+custom_root_http_status=403
+custom_root_content-type: text/html; charset=UTF-8
+custom_root_cf-mitigated: challenge
+custom_root_server: cloudflare
+custom_root_cf-ray: a2d8a81ff926053e-SJC
+custom_api_http_status=403
+custom_api_content-type: text/html; charset=UTF-8
+custom_api_cf-mitigated: challenge
+custom_api_server: cloudflare
+custom_api_cf-ray: a2d8a8203b63152b-SJC
