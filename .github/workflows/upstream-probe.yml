@@ -16,28 +16,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Probe qso.mizuki.top public API
+      - name: Probe custom and Pages domains
         shell: bash
         run: |
           set -u
-          endpoint='https://qso.mizuki.top/api/public/qsos?q=BA4VRM&page=1&limit=20'
           result='.github/upstream-probe-result.txt'
-          headers="$(mktemp)"
-          body="$(mktemp)"
-          status="$(curl --silent --show-error --location --connect-timeout 10 --max-time 20 \
-            -H 'Accept: application/json' -D "$headers" -o "$body" -w '%{http_code}' "$endpoint" || true)"
+          : > "$result"
+          echo "checked_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$result"
 
-          {
-            echo "checked_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-            echo "http_status=$status"
-            grep -iE '^(content-type|server|cf-ray):' "$headers" || true
-            python3 - "$body" <<'PY'
+          probe() {
+            local name="$1"
+            local endpoint="$2"
+            local headers body status
+            headers="$(mktemp)"
+            body="$(mktemp)"
+            status="$(curl --silent --show-error --location --connect-timeout 10 --max-time 25 \
+              -H 'Accept: application/json' -D "$headers" -o "$body" -w '%{http_code}' "$endpoint" || true)"
+            {
+              echo
+              echo "[$name]"
+              echo "http_status=$status"
+              grep -iE '^(content-type|server|cf-ray|cf-mitigated):' "$headers" || true
+              python3 - "$body" <<'PY'
           import json, sys
           raw=open(sys.argv[1],'rb').read(131072)
           try:
               data=json.loads(raw.decode('utf-8','replace'))
           except Exception:
-              print('summary=' + raw.decode('utf-8','replace').strip().replace('\n',' ')[:500])
+              text=raw.decode('utf-8','replace').strip().replace('\n',' ')
+              print('summary=' + text[:240])
           else:
               up=data.get('upstream') or {}
               fb=data.get('fallback') or {}
@@ -64,9 +71,15 @@ jobs:
               }
               print('summary=' + json.dumps(safe,ensure_ascii=False))
           PY
-          } > "$result"
+            } >> "$result"
+            rm -f "$headers" "$body"
+          }
+
+          query='/api/public/qsos?q=BA4VRM&page=1&limit=20'
+          probe 'custom-domain' "https://qso.mizuki.top$query"
+          probe 'pages-default-domain' "https://ba4thg-qso.pages.dev$query"
+
           cat "$result"
-          rm -f "$headers" "$body"
 
       - name: Commit sanitized probe result
         shell: bash
@@ -77,5 +90,5 @@ jobs:
           if git diff --cached --quiet; then
             exit 0
           fi
-          git commit -m '记录生产 QSO API 边缘探针结果'
+          git commit -m '记录生产 QSO API 双域名探针结果'
           git push
