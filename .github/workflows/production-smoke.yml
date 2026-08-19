@@ -23,7 +23,8 @@ jobs:
         run: |
           set -u
           pages_endpoint='https://ba4thg-qso.pages.dev/api/public/qsos?q=BA4VRM&page=1&limit=20'
-          custom_endpoint='https://qso.mizuki.top/api/public/qsos?q=BA4VRM&page=1&limit=20'
+          custom_api='https://qso.mizuki.top/api/public/qsos?q=BA4VRM&page=1&limit=20'
+          custom_root='https://qso.mizuki.top/'
           result='.github/production-smoke-result.txt'
           body="$(mktemp)"
           headers="$(mktemp)"
@@ -58,6 +59,20 @@ jobs:
             echo "waiting for target Pages deployment: attempt=$attempt status=$status"
             sleep 10
           done
+
+          probe_edge() {
+            local label="$1"
+            local endpoint="$2"
+            local accept="$3"
+            local ph pb ps
+            ph="$(mktemp)"
+            pb="$(mktemp)"
+            ps="$(curl --silent --show-error --location --connect-timeout 10 --max-time 20 \
+              -H "Accept: $accept" -D "$ph" -o "$pb" -w '%{http_code}' "$endpoint" || true)"
+            echo "${label}_http_status=$ps"
+            grep -iE '^(content-type|server|cf-ray|cf-mitigated):' "$ph" | sed "s/^/${label}_/" || true
+            rm -f "$ph" "$pb"
+          }
 
           {
             echo "checked_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
@@ -97,14 +112,8 @@ jobs:
               }
               print('pages_summary=' + json.dumps(safe,ensure_ascii=False))
           PY
-
-            custom_headers="$(mktemp)"
-            custom_body="$(mktemp)"
-            custom_status="$(curl --silent --show-error --location --connect-timeout 10 --max-time 20 \
-              -H 'Accept: application/json' -D "$custom_headers" -o "$custom_body" -w '%{http_code}' "$custom_endpoint" || true)"
-            echo "custom_http_status=$custom_status"
-            grep -iE '^(content-type|server|cf-ray|cf-mitigated):' "$custom_headers" | sed 's/^/custom_/' || true
-            rm -f "$custom_headers" "$custom_body"
+            probe_edge 'custom_root' "$custom_root" 'text/html,application/xhtml+xml'
+            probe_edge 'custom_api' "$custom_api" 'application/json'
           } > "$result"
 
           cat "$result"
