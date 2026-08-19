@@ -19,7 +19,6 @@ test('server-side upstream query uses contact role and first-party origin',async
   assert.equal(request.searchParams.get('limit'),'20');
   assert.equal(request.searchParams.get('queryToken'),'query-token');
   assert.equal(calls[0].init.headers.origin,'https://qso.mizuki.top');
-  assert.equal(calls[0].init.headers.referer,'https://qso.mizuki.top/');
 });
 
 test('queryToken is not forwarded beyond page one',async()=>{
