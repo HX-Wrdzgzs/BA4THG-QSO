@@ -1,4 +1,4 @@
-name: Upstream QSO probe
+name: Production edge probe
 
 on:
   push:
@@ -12,120 +12,70 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 3
     steps:
       - uses: actions/checkout@v4
 
-      - name: Probe mzyyun public QSO API
+      - name: Probe qso.mizuki.top public API
         shell: bash
         run: |
           set -u
+          endpoint='https://qso.mizuki.top/api/public/qsos?q=BA4VRM&page=1&limit=20'
           result='.github/upstream-probe-result.txt'
-          reciprocal='.github/ba4vrm-reciprocal.json'
-          : > "$result"
-          echo "checked_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$result"
+          headers="$(mktemp)"
+          body="$(mktemp)"
+          status="$(curl --silent --show-error --location --connect-timeout 10 --max-time 20 \
+            -H 'Accept: application/json' -D "$headers" -o "$body" -w '%{http_code}' "$endpoint" || true)"
 
-          probe() {
-            local name="$1"
-            local origin="$2"
-            local url="$3"
-            local headers body status
-            headers="$(mktemp)"
-            body="$(mktemp)"
-
-            args=(--silent --show-error --location --connect-timeout 10 --max-time 20 -H 'Accept: application/json')
-            if [[ -n "$origin" ]]; then
-              args+=(-H "Origin: $origin")
-            fi
-
-            status="$(curl "${args[@]}" -D "$headers" -o "$body" -w '%{http_code}' "$url" || true)"
-            {
-              echo
-              echo "[$name]"
-              echo "origin=${origin:-<none>}"
-              echo "http_status=$status"
-              grep -iE '^(content-type|server|cf-ray|x-request-id|x-powered-by):' "$headers" || true
-              python3 - "$body" <<'PY'
+          {
+            echo "checked_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            echo "http_status=$status"
+            grep -iE '^(content-type|server|cf-ray):' "$headers" || true
+            python3 - "$body" <<'PY'
           import json, sys
-          raw = open(sys.argv[1], 'rb').read(65536)
+          raw=open(sys.argv[1],'rb').read(131072)
           try:
-              data = json.loads(raw.decode('utf-8', 'replace'))
+              data=json.loads(raw.decode('utf-8','replace'))
           except Exception:
-              text = raw.decode('utf-8', 'replace').strip().replace('\n', ' ')
-              print('summary=' + text[:500])
+              print('summary=' + raw.decode('utf-8','replace').strip().replace('\n',' ')[:500])
           else:
-              safe = {
-                  'error': data.get('error'),
-                  'station': data.get('station'),
-                  'search': data.get('search'),
-                  'total': data.get('total'),
-                  'page': data.get('page'),
-                  'limit': data.get('limit'),
-                  'captchaRequired': data.get('captchaRequired'),
-                  'hasItems': bool(data.get('items')),
-                  'itemCount': len(data.get('items') or []),
+              up=data.get('upstream') or {}
+              fb=data.get('fallback') or {}
+              arc=fb.get('archived') or {}
+              safe={
+                  'error':data.get('error'),
+                  'station':data.get('station'),
+                  'search':data.get('search'),
+                  'total':data.get('total'),
+                  'itemCount':len(data.get('items') or []),
+                  'source':data.get('source'),
+                  'stale':data.get('stale'),
+                  'complete':data.get('complete'),
+                  'degraded':data.get('degraded'),
+                  'upstreamStatus':up.get('status'),
+                  'upstreamOk':up.get('ok'),
+                  'fallbackOk':fb.get('ok'),
+                  'fallbackKind':fb.get('kind'),
+                  'fallbackFetched':arc.get('fetched'),
+                  'fallbackInserted':arc.get('inserted'),
+                  'fallbackUpdated':arc.get('updated'),
+                  'fallbackLinked':arc.get('linkedToExisting'),
+                  'fallbackRejected':arc.get('rejected'),
               }
-              print('summary=' + json.dumps(safe, ensure_ascii=False))
+              print('summary=' + json.dumps(safe,ensure_ascii=False))
           PY
-            } >> "$result"
-            rm -f "$headers" "$body"
-          }
-
-          base='https://api.mzyyun.com/public/qso'
-          contact="$base?callsign=BA4VRM&role=contact&page=1&limit=20"
-
-          probe 'no-origin' '' "$contact"
-          probe 'known-good-mzyyun-origin' 'https://mzyyun.com' "$contact"
-          probe 'example-origin' 'https://example.com' "$contact"
-          probe 'qso-https-normal' 'https://qso.mizuki.top' "$contact"
-          probe 'qso-https-trailing-slash' 'https://qso.mizuki.top/' "$contact"
-          probe 'qso-bare-host' 'qso.mizuki.top' "$contact"
-          probe 'qso-http' 'http://qso.mizuki.top' "$contact"
-          probe 'qso-https-uppercase-host' 'https://QSO.MIZUKI.TOP' "$contact"
-          probe 'qso-https-port-443' 'https://qso.mizuki.top:443' "$contact"
-          probe 'qso-www' 'https://www.qso.mizuki.top' "$contact"
-
-          python3 - "$reciprocal" <<'PY'
-          import json, subprocess, sys, urllib.parse
-          out = sys.argv[1]
-          matches = []
-          base = 'https://api.mzyyun.com/public/qso'
-          for page in range(1, 6):
-              url = base + '?' + urllib.parse.urlencode({
-                  'callsign':'BA4VRM', 'role':'operator', 'page':page, 'limit':20
-              })
-              p = subprocess.run([
-                  'curl','--silent','--show-error','--location','--connect-timeout','10','--max-time','20',
-                  '-H','Accept: application/json','-H','Origin: https://mzyyun.com',url
-              ], capture_output=True, text=True)
-              if p.returncode != 0:
-                  break
-              try:
-                  data = json.loads(p.stdout)
-              except Exception:
-                  break
-              for item in data.get('items') or []:
-                  if str(item.get('theirCallsign') or '').strip().upper() == 'BA4THG':
-                      matches.append(item)
-              total = int(data.get('total') or 0)
-              if page * 20 >= total:
-                  break
-          with open(out,'w',encoding='utf-8') as f:
-              json.dump({'station':'BA4VRM','counterparty':'BA4THG','count':len(matches),'items':matches},f,ensure_ascii=False,indent=2)
-          print('reciprocal_matches=' + str(len(matches)))
-          PY
-
+          } > "$result"
           cat "$result"
-          cat "$reciprocal"
+          rm -f "$headers" "$body"
 
       - name: Commit sanitized probe result
         shell: bash
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add .github/upstream-probe-result.txt .github/ba4vrm-reciprocal.json
+          git add .github/upstream-probe-result.txt
           if git diff --cached --quiet; then
             exit 0
           fi
-          git commit -m '记录上游 QSO Origin 与互证结果'
+          git commit -m '记录生产 QSO API 边缘探针结果'
           git push
