@@ -1,0 +1,59 @@
+name: Upstream QSO probe
+
+on:
+  push:
+    paths:
+      - '.github/workflows/upstream-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe mzyyun public QSO API
+        shell: bash
+        run: |
+          set -euo pipefail
+          url='https://api.mzyyun.com/public/qso?callsign=BA4VRM&role=contact&page=1&limit=20'
+          headers="$(mktemp)"
+          body="$(mktemp)"
+          status="$(curl --silent --show-error --location \
+            --connect-timeout 10 --max-time 20 \
+            -H 'Accept: application/json' \
+            -H 'Origin: https://qso.mizuki.top' \
+            -D "$headers" -o "$body" -w '%{http_code}' \
+            "$url" || true)"
+
+          echo "HTTP_STATUS=$status"
+          echo '--- response headers (selected) ---'
+          grep -iE '^(content-type|server|cf-ray|x-request-id|x-powered-by):' "$headers" || true
+          echo '--- response summary ---'
+          python3 - "$body" <<'PY'
+          import json, sys
+          p = sys.argv[1]
+          raw = open(p, 'rb').read(65536)
+          try:
+              data = json.loads(raw.decode('utf-8', 'replace'))
+          except Exception:
+              print(raw.decode('utf-8', 'replace')[:500])
+          else:
+              safe = {
+                  'error': data.get('error'),
+                  'total': data.get('total'),
+                  'page': data.get('page'),
+                  'limit': data.get('limit'),
+                  'captchaRequired': data.get('captchaRequired'),
+                  'hasItems': bool(data.get('items')),
+                  'itemCount': len(data.get('items') or []),
+              }
+              print(json.dumps(safe, ensure_ascii=False))
+          PY
+
+          case "$status" in
+            200|400|403|409|429) exit 0 ;;
+            *) exit 1 ;;
+          esac
