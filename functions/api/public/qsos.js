@@ -1,6 +1,7 @@
 import{isValidCallsign,json,normalizeCallsign,parsePositiveInt}from'../../_lib/http.js';
 import{rowToItem}from'../../_lib/qso.js';
 import{archiveUpstreamItems,fetchUpstreamContact}from'../../_lib/upstream-qso.js';
+import{getVerifiedReciprocalSnapshot}from'../../_lib/verified-reciprocal.js';
 
 const corsHeaders={
   'access-control-allow-origin':'*',
@@ -52,9 +53,10 @@ export async function onRequestGet(c){
   const refresh=refreshEnabled(url,c.request);
   const queryToken=String(c.request.headers.get('x-upstream-query-token')||'').slice(0,8192);
   let upstream={attempted:false,ok:false,status:0,captchaRequired:false,captchaId:'',archived:null};
+  let live=null;
 
   if(refresh){
-    const live=await fetchUpstreamContact({
+    live=await fetchUpstreamContact({
       callsign:q,
       page,
       limit,
@@ -71,33 +73,66 @@ export async function onRequestGet(c){
       diagnostic:live.diagnostic||null,
       archived:null
     };
-
-    if(live.ok){
-      // contact 查询的 station 字段语义由上游定义，不能据此拒绝整页；真正的写入边界在逐条 QSO 校验。
-      upstream.station=normalizeCallsign(live.data?.station||'');
-      const items=Array.isArray(live.data?.items)?live.data.items:[];
-      upstream.total=Number(live.data?.total||0);
-      upstream.archived=await archiveUpstreamItems(c.env.DB,items,call,{expectedTheirCallsign:q,skipUnchanged:true});
-    }else upstream.error=live.error||'上游暂不可用';
+    if(!live.ok)upstream.error=live.error||'上游暂不可用';
   }
 
   try{
-    const archive=await readArchive(c.env.DB,call,q,page,limit);
-    if(refresh&&!upstream.ok&&archive.total===0){
-      return publicError('实时数据源暂不可用，本站长期档案中也没有匹配记录',502,{
-        station:call,
-        search:q,
-        page,
-        limit,
-        total:0,
-        items:[],
-        source:'本站长期档案',
-        upstream
+    if(live?.ok){
+      // contact 查询的 station 字段语义由上游定义，真正的写入边界在逐条 QSO 校验。
+      upstream.station=normalizeCallsign(live.data?.station||'');
+      const items=Array.isArray(live.data?.items)?live.data.items:[];
+      upstream.total=Number(live.data?.total||0);
+      upstream.archived=await archiveUpstreamItems(c.env.DB,items,call,{
+        sourceName:'mzyyun_api',
+        expectedTheirCallsign:q,
+        skipUnchanged:true,
+        updateQso:true,
+        promoteExisting:true
       });
+    }
+
+    let archive=await readArchive(c.env.DB,call,q,page,limit);
+    let fallback={attempted:false,ok:false,kind:'verified-reciprocal-snapshot',archived:null};
+
+    // 上游当前对未正确绑定的 Origin 会异常返回 500。仅在 D1 尚无记录时使用人工核验过的公开互证快照做一次性回填。
+    if(archive.total===0){
+      const snapshot=getVerifiedReciprocalSnapshot(call,q);
+      if(snapshot){
+        fallback={
+          attempted:true,
+          ok:true,
+          kind:'verified-reciprocal-snapshot',
+          source:snapshot.source,
+          evidenceStation:snapshot.evidenceStation,
+          verifiedAt:snapshot.verifiedAt,
+          archived:null
+        };
+        fallback.archived=await archiveUpstreamItems(c.env.DB,snapshot.items,call,{
+          sourceName:snapshot.source,
+          expectedTheirCallsign:q,
+          skipUnchanged:true,
+          updateQso:false,
+          promoteExisting:false
+        });
+        archive=await readArchive(c.env.DB,call,q,page,limit);
+      }
     }
 
     const accepted=Number(upstream.archived?.fetched||0)-Number(upstream.archived?.rejected||0);
     const total=Math.max(archive.total,upstream.ok&&accepted>0?Number(upstream.total||0):0);
+    const upstreamFailed=Boolean(refresh&&!upstream.ok);
+    const fallbackUsed=Boolean(fallback.ok&&Number(fallback.archived?.fetched||0)>0);
+    const source=upstream.ok
+      ?'本站长期档案（已尝试实时刷新并归档）'
+      :fallbackUsed
+        ?'本站长期档案（已用经验证的公开互证快照补齐）'
+        :'本站长期档案';
+    const warning=upstreamFailed
+      ?fallbackUsed
+        ?'实时上游当前异常；已使用经验证的公开互证快照补齐 D1。快照之后的新变化仍需等待上游绑定恢复。'
+        :'实时上游当前异常；已返回本站现有长期档案，结果可能不完整。'
+      :null;
+
     return json({
       station:call,
       search:q,
@@ -105,9 +140,13 @@ export async function onRequestGet(c){
       limit,
       total,
       items:archive.items,
-      source:upstream.ok?'本站长期档案（已尝试实时刷新并归档）':'本站长期档案',
-      stale:Boolean(refresh&&!upstream.ok),
-      upstream
+      source,
+      stale:upstreamFailed,
+      complete:Boolean(upstream.ok),
+      degraded:Boolean(upstreamFailed||fallbackUsed),
+      warning,
+      upstream,
+      fallback
     },{headers:{...corsHeaders,'cache-control':'no-store'}});
   }catch(e){
     return publicError(e instanceof Error?e.message:'查询失败',500);
