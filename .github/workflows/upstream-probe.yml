@@ -21,6 +21,7 @@ jobs:
         run: |
           set -u
           result='.github/upstream-probe-result.txt'
+          reciprocal='.github/ba4vrm-reciprocal.json'
           : > "$result"
           echo "checked_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$result"
 
@@ -76,7 +77,6 @@ jobs:
           probe 'no-origin' '' "$contact"
           probe 'known-good-mzyyun-origin' 'https://mzyyun.com' "$contact"
           probe 'example-origin' 'https://example.com' "$contact"
-
           probe 'qso-https-normal' 'https://qso.mizuki.top' "$contact"
           probe 'qso-https-trailing-slash' 'https://qso.mizuki.top/' "$contact"
           probe 'qso-bare-host' 'qso.mizuki.top' "$contact"
@@ -85,16 +85,47 @@ jobs:
           probe 'qso-https-port-443' 'https://qso.mizuki.top:443' "$contact"
           probe 'qso-www' 'https://www.qso.mizuki.top' "$contact"
 
+          python3 - "$reciprocal" <<'PY'
+          import json, subprocess, sys, urllib.parse
+          out = sys.argv[1]
+          matches = []
+          base = 'https://api.mzyyun.com/public/qso'
+          for page in range(1, 6):
+              url = base + '?' + urllib.parse.urlencode({
+                  'callsign':'BA4VRM', 'role':'operator', 'page':page, 'limit':20
+              })
+              p = subprocess.run([
+                  'curl','--silent','--show-error','--location','--connect-timeout','10','--max-time','20',
+                  '-H','Accept: application/json','-H','Origin: https://mzyyun.com',url
+              ], capture_output=True, text=True)
+              if p.returncode != 0:
+                  break
+              try:
+                  data = json.loads(p.stdout)
+              except Exception:
+                  break
+              for item in data.get('items') or []:
+                  if str(item.get('theirCallsign') or '').strip().upper() == 'BA4THG':
+                      matches.append(item)
+              total = int(data.get('total') or 0)
+              if page * 20 >= total:
+                  break
+          with open(out,'w',encoding='utf-8') as f:
+              json.dump({'station':'BA4VRM','counterparty':'BA4THG','count':len(matches),'items':matches},f,ensure_ascii=False,indent=2)
+          print('reciprocal_matches=' + str(len(matches)))
+          PY
+
           cat "$result"
+          cat "$reciprocal"
 
       - name: Commit sanitized probe result
         shell: bash
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add .github/upstream-probe-result.txt
+          git add .github/upstream-probe-result.txt .github/ba4vrm-reciprocal.json
           if git diff --cached --quiet; then
             exit 0
           fi
-          git commit -m '记录上游 QSO API Origin 格式探针结果'
+          git commit -m '记录上游 QSO Origin 与互证结果'
           git push
