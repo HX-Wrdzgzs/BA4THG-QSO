@@ -39,6 +39,8 @@ export async function archiveUpstreamItems(db,items,operatorCall,options={}){
   const call=normalizeCallsign(operatorCall||'BA4THG');
   const expectedTheir=normalizeCallsign(options.expectedTheirCallsign||'');
   const sourceName=String(options.sourceName||'mzyyun_api');
+  const updateQso=options.updateQso!==false;
+  const promoteExisting=options.promoteExisting===undefined?sourceName==='mzyyun_api':Boolean(options.promoteExisting);
   let inserted=0,updated=0,linked=0,rejected=0;
   const now=new Date().toISOString();
 
@@ -59,14 +61,14 @@ export async function archiveUpstreamItems(db,items,operatorCall,options={}){
         if(options.skipUnchanged&&source.raw_json===raw){linked++;continue;}
         await db.prepare('UPDATE qso_sources SET raw_json=?,last_seen_at=? WHERE source=? AND source_id=?')
           .bind(raw,now,sourceName,sourceId).run();
-        if(source.managed_by==='external'){
+        if(updateQso&&source.managed_by==='external'){
           await updateQsoStatement(db,source.id,q,fingerprint,now).run();
           updated++;
         }else linked++;
         continue;
       }
 
-      const existing=await db.prepare('SELECT id FROM qsos WHERE fingerprint=? AND deleted_at IS NULL').bind(fingerprint).first();
+      const existing=await db.prepare('SELECT id,managed_by FROM qsos WHERE fingerprint=? AND deleted_at IS NULL').bind(fingerprint).first();
       let id=existing?.id||'';
       if(!id){
         const proposedId=crypto.randomUUID();
@@ -75,11 +77,17 @@ export async function archiveUpstreamItems(db,items,operatorCall,options={}){
           id=proposedId;
           inserted++;
         }else{
-          const raced=await db.prepare('SELECT id FROM qsos WHERE fingerprint=? AND deleted_at IS NULL').bind(fingerprint).first();
+          const raced=await db.prepare('SELECT id,managed_by FROM qsos WHERE fingerprint=? AND deleted_at IS NULL').bind(fingerprint).first();
           if(!raced?.id)throw new Error('并发写入后无法定位记录');
           id=raced.id;
-          linked++;
+          if(promoteExisting&&updateQso&&raced.managed_by==='external'){
+            await updateQsoStatement(db,id,q,fingerprint,now).run();
+            updated++;
+          }else linked++;
         }
+      }else if(promoteExisting&&updateQso&&existing.managed_by==='external'){
+        await updateQsoStatement(db,id,q,fingerprint,now).run();
+        updated++;
       }else linked++;
 
       await db.prepare('INSERT OR IGNORE INTO qso_sources(qso_id,source,source_id,raw_json,first_seen_at,last_seen_at) VALUES(?,?,?,?,?,?)')
