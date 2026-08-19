@@ -1,0 +1,123 @@
+checked_at=2026-08-19T10:51:06Z
+exit_code=0
+--- tail ---
+  duration_ms: 1.75087
+  type: 'test'
+  ...
+# Subtest: public page blocks empty/invalid callsigns and sends valid queries directly as contact
+ok 12 - public page blocks empty/invalid callsigns and sends valid queries directly as contact
+  ---
+  duration_ms: 399.619963
+  type: 'test'
+  ...
+# Subtest: QSL lookup implements all documented modes without unknown-mode fallback
+ok 13 - QSL lookup implements all documented modes without unknown-mode fallback
+  ---
+  duration_ms: 1.239348
+  type: 'test'
+  ...
+# Subtest: expired session is cleared and lookup retries without the token
+ok 14 - expired session is cleared and lookup retries without the token
+  ---
+  duration_ms: 1.011798
+  type: 'test'
+  ...
+# Subtest: ordinary 403 is an application restriction and does not clear sessionToken
+ok 15 - ordinary 403 is an application restriction and does not clear sessionToken
+  ---
+  duration_ms: 1.455199
+  type: 'test'
+  ...
+# Subtest: postalCode accepts the API character set and rejects invalid values
+ok 16 - postalCode accepts the API character set and rejects invalid values
+  ---
+  duration_ms: 1.828947
+  type: 'test'
+  ...
+# Subtest: submit preserves API id types, rejects non-eligible ids, validates address and clears verifyToken only after success
+ok 17 - submit preserves API id types, rejects non-eligible ids, validates address and clears verifyToken only after success
+  ---
+  duration_ms: 2.240621
+  type: 'test'
+  ...
+# Subtest: submit clears only invalid or used HTTP 400 verifyToken errors and refreshes lookup
+ok 18 - submit clears only invalid or used HTTP 400 verifyToken errors and refreshes lookup
+  ---
+  duration_ms: 1.282393
+  type: 'test'
+  ...
+# Subtest: submit HTTP 409 refreshes eligible and applied state from lookup
+ok 19 - submit HTTP 409 refreshes eligible and applied state from lookup
+  ---
+  duration_ms: 0.950297
+  type: 'test'
+  ...
+# Subtest: status summaries never expose internal ids and show sent time/tracking
+ok 20 - status summaries never expose internal ids and show sent time/tracking
+  ---
+  duration_ms: 1.036786
+  type: 'test'
+  ...
+# Subtest: lookup captchaId is used before protected QSL request
+ok 21 - lookup captchaId is used before protected QSL request
+  ---
+  duration_ms: 87.384092
+  type: 'test'
+  ...
+# Subtest: explicit captcha fields are not replaced by another challenge
+ok 22 - explicit captcha fields are not replaced by another challenge
+  ---
+  duration_ms: 1.472336
+  type: 'test'
+  ...
+# Subtest: server-side upstream query uses contact role and browser-compatible first-party headers
+ok 23 - server-side upstream query uses contact role and browser-compatible first-party headers
+  ---
+  duration_ms: 27.05965
+  type: 'test'
+  ...
+# Subtest: queryToken is not forwarded beyond page one
+ok 24 - queryToken is not forwarded beyond page one
+  ---
+  duration_ms: 0.60978
+  type: 'test'
+  ...
+# Subtest: upstream captcha metadata is preserved for API clients
+ok 25 - upstream captcha metadata is preserved for API clients
+  ---
+  duration_ms: 0.695287
+  type: 'test'
+  ...
+# Subtest: plain-text upstream errors are retained without exposing html bodies
+ok 26 - plain-text upstream errors are retained without exposing html bodies
+  ---
+  duration_ms: 1.207841
+  type: 'test'
+  ...
+# Subtest: verified BA4VRM reciprocal snapshot is stored in BA4THG orientation
+ok 27 - verified BA4VRM reciprocal snapshot is stored in BA4THG orientation
+  ---
+  duration_ms: 0.31473
+  type: 'test'
+  ...
+# Subtest: direct mzyyun source promotes an external fingerprint match
+ok 28 - direct mzyyun source promotes an external fingerprint match
+  ---
+  duration_ms: 15.123792
+  type: 'test'
+  ...
+# Subtest: verified reciprocal source can link but cannot overwrite an existing QSO
+ok 29 - verified reciprocal source can link but cannot overwrite an existing QSO
+  ---
+  duration_ms: 3.434125
+  type: 'test'
+  ...
+1..29
+# tests 29
+# suites 0
+# pass 29
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 590.443529
