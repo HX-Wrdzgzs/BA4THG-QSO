@@ -1,0 +1,110 @@
+name: Production QSO smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'functions/**'
+      - '.github/workflows/production-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Wait for Pages deployment and verify BA4VRM query
+        shell: bash
+        run: |
+          set -u
+          endpoint='https://qso.mizuki.top/api/public/qsos?q=BA4VRM&page=1&limit=20'
+          result='.github/production-smoke-result.txt'
+          body="$(mktemp)"
+          headers="$(mktemp)"
+          matched=0
+
+          for attempt in $(seq 1 24); do
+            status="$(curl --silent --show-error --location --connect-timeout 10 --max-time 20 \
+              -H 'Accept: application/json' -D "$headers" -o "$body" -w '%{http_code}' "$endpoint" || true)"
+
+            if python3 - "$body" <<'PY'
+          import json, sys
+          try:
+              data=json.load(open(sys.argv[1],encoding='utf-8'))
+          except Exception:
+              raise SystemExit(1)
+          # fallback 字段只存在于本次修订后的 API，用它确认 Pages 已经部署到目标版本。
+          raise SystemExit(0 if 'fallback' in data and data.get('search')=='BA4VRM' else 1)
+          PY
+            then
+              matched=1
+              break
+            fi
+
+            echo "waiting for target Pages deployment: attempt=$attempt status=$status"
+            sleep 15
+          done
+
+          {
+            echo "checked_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            echo "target_version_seen=$matched"
+            echo "http_status=${status:-0}"
+            grep -iE '^(content-type|server|cf-ray):' "$headers" || true
+            python3 - "$body" <<'PY'
+          import json, sys
+          raw=open(sys.argv[1],'rb').read(131072)
+          try:
+              data=json.loads(raw.decode('utf-8','replace'))
+          except Exception:
+              print('summary=' + raw.decode('utf-8','replace').strip().replace('\n',' ')[:500])
+          else:
+              up=data.get('upstream') or {}
+              fb=data.get('fallback') or {}
+              arc=fb.get('archived') or {}
+              safe={
+                  'error':data.get('error'),
+                  'station':data.get('station'),
+                  'search':data.get('search'),
+                  'total':data.get('total'),
+                  'itemCount':len(data.get('items') or []),
+                  'source':data.get('source'),
+                  'stale':data.get('stale'),
+                  'complete':data.get('complete'),
+                  'degraded':data.get('degraded'),
+                  'upstreamStatus':up.get('status'),
+                  'upstreamOk':up.get('ok'),
+                  'fallbackOk':fb.get('ok'),
+                  'fallbackKind':fb.get('kind'),
+                  'fallbackFetched':arc.get('fetched'),
+                  'fallbackInserted':arc.get('inserted'),
+                  'fallbackUpdated':arc.get('updated'),
+                  'fallbackLinked':arc.get('linkedToExisting'),
+                  'fallbackRejected':arc.get('rejected'),
+              }
+              print('summary=' + json.dumps(safe,ensure_ascii=False))
+          PY
+          } > "$result"
+
+          cat "$result"
+          rm -f "$body" "$headers"
+          test "$matched" = 1
+          test "${status:-0}" = 200
+
+      - name: Commit sanitized production result
+        if: always()
+        shell: bash
+        run: |
+          test -f .github/production-smoke-result.txt || exit 0
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/production-smoke-result.txt
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m '记录生产 QSO API 自动验收结果'
+          git push
