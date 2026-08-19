@@ -3,6 +3,7 @@ import{fingerprintQso,insertQsoStatement,normalizeQsoInput,updateQsoStatement}fr
 
 const DEFAULT_API_BASE='https://api.mzyyun.com';
 const DEFAULT_SITE_ORIGIN='https://qso.mizuki.top';
+const DEFAULT_USER_AGENT='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36';
 
 function mapUpstreamQso(x){
   return{
@@ -91,6 +92,15 @@ export async function archiveUpstreamItems(db,items,operatorCall,options={}){
   return{fetched:Array.isArray(items)?items.length:0,inserted,updated,linkedToExisting:linked,rejected};
 }
 
+function responseDiagnostic(response){
+  return{
+    contentType:String(response.headers.get('content-type')||''),
+    server:String(response.headers.get('server')||''),
+    cfRay:String(response.headers.get('cf-ray')||''),
+    requestId:String(response.headers.get('x-request-id')||response.headers.get('x-amzn-requestid')||'')
+  };
+}
+
 export async function fetchUpstreamContact(options={}){
   const callsign=normalizeCallsign(options.callsign||'');
   const page=Math.max(1,Number.parseInt(options.page,10)||1);
@@ -104,23 +114,47 @@ export async function fetchUpstreamContact(options={}){
   const controller=new AbortController();
   const timeout=setTimeout(()=>controller.abort(),8000);
   try{
+    const headers={
+      accept:'application/json, text/plain, */*',
+      'accept-language':'zh-CN,zh;q=0.9,en;q=0.8',
+      origin:siteOrigin,
+      referer:`${siteOrigin}/`,
+      'user-agent':String(options.userAgent||DEFAULT_USER_AGENT),
+      'sec-fetch-dest':'empty',
+      'sec-fetch-mode':'cors',
+      'sec-fetch-site':'cross-site'
+    };
     const response=await (options.fetchImpl||fetch)(`${apiBase}/public/qso?${params}`,{
-      headers:{accept:'application/json',origin:siteOrigin},
+      method:'GET',
+      headers,
+      redirect:'follow',
       signal:controller.signal
     });
-    const data=await response.json().catch(()=>({}));
+    const raw=await response.text();
+    let data={};
+    try{data=JSON.parse(raw||'{}');}catch{}
+    const diagnostic=responseDiagnostic(response);
     if(!response.ok){
+      const plainText=!diagnostic.contentType.toLowerCase().includes('html')&&!diagnostic.contentType.toLowerCase().includes('json')?raw.trim().slice(0,160):'';
       return{
         ok:false,
         status:response.status,
-        error:String(data?.error||`上游返回 HTTP ${response.status}`),
+        error:String(data?.error||plainText||`上游返回 HTTP ${response.status}`),
         captchaRequired:Boolean(data?.captchaRequired),
-        captchaId:String(data?.captchaId||'')
+        captchaId:String(data?.captchaId||''),
+        diagnostic
       };
     }
-    return{ok:true,status:response.status,data};
+    return{ok:true,status:response.status,data,diagnostic};
   }catch(error){
-    return{ok:false,status:0,error:error?.name==='AbortError'?'上游请求超时':'上游暂不可用',captchaRequired:false,captchaId:''};
+    return{
+      ok:false,
+      status:0,
+      error:error?.name==='AbortError'?'上游请求超时':'上游暂不可用',
+      captchaRequired:false,
+      captchaId:'',
+      diagnostic:{exception:String(error?.name||'Error')}
+    };
   }finally{
     clearTimeout(timeout);
   }
