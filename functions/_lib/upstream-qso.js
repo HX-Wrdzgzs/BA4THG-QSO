@@ -105,8 +105,7 @@ export async function fetchUpstreamContact(options={}){
   const timeout=setTimeout(()=>controller.abort(),8000);
   try{
     const response=await (options.fetchImpl||fetch)(`${apiBase}/public/qso?${params}`,{
-      headers:{accept:'application/json',origin:siteOrigin,referer:`${siteOrigin}/`},
-      cache:'no-store',
+      headers:{accept:'application/json',origin:siteOrigin},
       signal:controller.signal
     });
     const data=await response.json().catch(()=>({}));
