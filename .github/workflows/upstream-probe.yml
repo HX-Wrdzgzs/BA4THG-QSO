@@ -20,33 +20,37 @@ jobs:
         shell: bash
         run: |
           set -u
-          url='https://api.mzyyun.com/public/qso?callsign=BA4VRM&role=contact&page=1&limit=20'
-          headers="$(mktemp)"
-          body="$(mktemp)"
           result='.github/upstream-probe-result.txt'
+          : > "$result"
+          echo "checked_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$result"
 
-          status="$(curl --silent --show-error --location \
-            --connect-timeout 10 --max-time 20 \
-            -H 'Accept: application/json' \
-            -H 'Origin: https://qso.mizuki.top' \
-            -D "$headers" -o "$body" -w '%{http_code}' \
-            "$url" || true)"
+          probe() {
+            local name="$1"
+            local origin_mode="$2"
+            local url="$3"
+            local headers body status
+            headers="$(mktemp)"
+            body="$(mktemp)"
 
-          {
-            echo "checked_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-            echo "http_status=$status"
-            echo 'headers:'
-            grep -iE '^(content-type|server|cf-ray|x-request-id|x-powered-by):' "$headers" || true
-            echo 'summary:'
-            python3 - "$body" <<'PY'
+            args=(--silent --show-error --location --connect-timeout 10 --max-time 20 -H 'Accept: application/json')
+            if [[ "$origin_mode" == 'origin' ]]; then
+              args+=(-H 'Origin: https://qso.mizuki.top')
+            fi
+
+            status="$(curl "${args[@]}" -D "$headers" -o "$body" -w '%{http_code}' "$url" || true)"
+            {
+              echo
+              echo "[$name]"
+              echo "http_status=$status"
+              grep -iE '^(content-type|server|cf-ray|x-request-id|x-powered-by):' "$headers" || true
+              python3 - "$body" <<'PY'
           import json, sys
-          p = sys.argv[1]
-          raw = open(p, 'rb').read(65536)
+          raw = open(sys.argv[1], 'rb').read(65536)
           try:
               data = json.loads(raw.decode('utf-8', 'replace'))
           except Exception:
               text = raw.decode('utf-8', 'replace').strip().replace('\n', ' ')
-              print(text[:500])
+              print('summary=' + text[:500])
           else:
               safe = {
                   'error': data.get('error'),
@@ -57,9 +61,18 @@ jobs:
                   'hasItems': bool(data.get('items')),
                   'itemCount': len(data.get('items') or []),
               }
-              print(json.dumps(safe, ensure_ascii=False))
+              print('summary=' + json.dumps(safe, ensure_ascii=False))
           PY
-          } > "$result"
+            } >> "$result"
+            rm -f "$headers" "$body"
+          }
+
+          base='https://api.mzyyun.com/public/qso'
+          probe 'no-origin-valid-query' 'none' "$base?callsign=BA4VRM&role=contact&page=1&limit=20"
+          probe 'registered-origin-ba4vrm-contact' 'origin' "$base?callsign=BA4VRM&role=contact&page=1&limit=20"
+          probe 'registered-origin-no-match-contact' 'origin' "$base?callsign=BG4ZZZ&role=contact&page=1&limit=20"
+          probe 'registered-origin-operator' 'origin' "$base?callsign=BA4THG&role=operator&page=1&limit=20"
+          probe 'registered-origin-invalid-callsign' 'origin' "$base?callsign=INVALID!&role=contact&page=1&limit=20"
 
           cat "$result"
 
@@ -72,5 +85,5 @@ jobs:
           if git diff --cached --quiet; then
             exit 0
           fi
-          git commit -m '记录上游 QSO API 探针结果'
+          git commit -m '记录上游 QSO API 分层探针结果'
           git push
