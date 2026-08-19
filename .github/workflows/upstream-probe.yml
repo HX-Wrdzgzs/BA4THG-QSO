@@ -7,20 +7,24 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   probe:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - uses: actions/checkout@v4
+
       - name: Probe mzyyun public QSO API
         shell: bash
         run: |
-          set -euo pipefail
+          set -u
           url='https://api.mzyyun.com/public/qso?callsign=BA4VRM&role=contact&page=1&limit=20'
           headers="$(mktemp)"
           body="$(mktemp)"
+          result='.github/upstream-probe-result.txt'
+
           status="$(curl --silent --show-error --location \
             --connect-timeout 10 --max-time 20 \
             -H 'Accept: application/json' \
@@ -28,18 +32,21 @@ jobs:
             -D "$headers" -o "$body" -w '%{http_code}' \
             "$url" || true)"
 
-          echo "HTTP_STATUS=$status"
-          echo '--- response headers (selected) ---'
-          grep -iE '^(content-type|server|cf-ray|x-request-id|x-powered-by):' "$headers" || true
-          echo '--- response summary ---'
-          python3 - "$body" <<'PY'
+          {
+            echo "checked_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            echo "http_status=$status"
+            echo 'headers:'
+            grep -iE '^(content-type|server|cf-ray|x-request-id|x-powered-by):' "$headers" || true
+            echo 'summary:'
+            python3 - "$body" <<'PY'
           import json, sys
           p = sys.argv[1]
           raw = open(p, 'rb').read(65536)
           try:
               data = json.loads(raw.decode('utf-8', 'replace'))
           except Exception:
-              print(raw.decode('utf-8', 'replace')[:500])
+              text = raw.decode('utf-8', 'replace').strip().replace('\n', ' ')
+              print(text[:500])
           else:
               safe = {
                   'error': data.get('error'),
@@ -52,8 +59,18 @@ jobs:
               }
               print(json.dumps(safe, ensure_ascii=False))
           PY
+          } > "$result"
 
-          case "$status" in
-            200|400|403|409|429) exit 0 ;;
-            *) exit 1 ;;
-          esac
+          cat "$result"
+
+      - name: Commit sanitized probe result
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/upstream-probe-result.txt
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m '记录上游 QSO API 探针结果'
+          git push
