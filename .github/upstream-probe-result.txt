@@ -1,63 +1,70 @@
-checked_at=2026-08-19T10:37:07Z
+checked_at=2026-08-19T10:42:02Z
 
-[no-origin-valid-query]
+[no-origin]
 origin=<none>
 http_status=403
 server: ESA
 content-type: application/json; charset=utf-8
 summary={"error": "请通过已登记的网站浏览器访问（需要 Origin）", "station": null, "search": null, "total": null, "page": null, "limit": null, "captchaRequired": null, "hasItems": false, "itemCount": 0}
 
-[unregistered-origin-valid-query]
+[known-good-mzyyun-origin]
+origin=https://mzyyun.com
+http_status=200
+server: ESA
+content-type: application/json; charset=utf-8
+summary={"error": null, "station": "BA4VRM", "search": null, "total": 0, "page": 1, "limit": 20, "captchaRequired": null, "hasItems": false, "itemCount": 0}
+
+[example-origin]
 origin=https://example.com
 http_status=500
 server: ESA
 content-type: application/json; charset=utf-8
 summary={"error": "Internal Server Error", "station": null, "search": null, "total": null, "page": null, "limit": null, "captchaRequired": null, "hasItems": false, "itemCount": 0}
 
-[mzyyun-origin-ba4vrm-contact]
-origin=https://mzyyun.com
-http_status=200
-server: ESA
-content-type: application/json; charset=utf-8
-summary={"error": null, "station": "BA4VRM", "search": null, "total": 0, "page": 1, "limit": 20, "captchaRequired": null, "hasItems": false, "itemCount": 0}
-
-[mzyyun-origin-ba4thg-operator]
-origin=https://mzyyun.com
-http_status=200
-server: ESA
-content-type: application/json; charset=utf-8
-summary={"error": null, "station": "BA4VRM", "search": null, "total": 0, "page": 1, "limit": 20, "captchaRequired": null, "hasItems": false, "itemCount": 0}
-
-[mzyyun-origin-ba4vrm-operator]
-origin=https://mzyyun.com
-http_status=200
-server: ESA
-content-type: application/json; charset=utf-8
-summary={"error": null, "station": "BA4VRM", "search": null, "total": 74, "page": 1, "limit": 20, "captchaRequired": null, "hasItems": true, "itemCount": 20}
-
-[qso-origin-ba4vrm-contact]
+[qso-https-normal]
 origin=https://qso.mizuki.top
 http_status=500
 server: ESA
 content-type: application/json; charset=utf-8
 summary={"error": "Internal Server Error", "station": null, "search": null, "total": null, "page": null, "limit": null, "captchaRequired": null, "hasItems": false, "itemCount": 0}
 
-[qso-origin-no-match-contact]
-origin=https://qso.mizuki.top
+[qso-https-trailing-slash]
+origin=https://qso.mizuki.top/
 http_status=500
 server: ESA
 content-type: application/json; charset=utf-8
 summary={"error": "Internal Server Error", "station": null, "search": null, "total": null, "page": null, "limit": null, "captchaRequired": null, "hasItems": false, "itemCount": 0}
 
-[qso-origin-operator]
-origin=https://qso.mizuki.top
+[qso-bare-host]
+origin=qso.mizuki.top
 http_status=500
 server: ESA
 content-type: application/json; charset=utf-8
 summary={"error": "Internal Server Error", "station": null, "search": null, "total": null, "page": null, "limit": null, "captchaRequired": null, "hasItems": false, "itemCount": 0}
 
-[qso-origin-invalid-callsign]
-origin=https://qso.mizuki.top
+[qso-http]
+origin=http://qso.mizuki.top
+http_status=500
+server: ESA
+content-type: application/json; charset=utf-8
+summary={"error": "Internal Server Error", "station": null, "search": null, "total": null, "page": null, "limit": null, "captchaRequired": null, "hasItems": false, "itemCount": 0}
+
+[qso-https-uppercase-host]
+origin=https://QSO.MIZUKI.TOP
+http_status=500
+server: ESA
+content-type: application/json; charset=utf-8
+summary={"error": "Internal Server Error", "station": null, "search": null, "total": null, "page": null, "limit": null, "captchaRequired": null, "hasItems": false, "itemCount": 0}
+
+[qso-https-port-443]
+origin=https://qso.mizuki.top:443
+http_status=500
+server: ESA
+content-type: application/json; charset=utf-8
+summary={"error": "Internal Server Error", "station": null, "search": null, "total": null, "page": null, "limit": null, "captchaRequired": null, "hasItems": false, "itemCount": 0}
+
+[qso-www]
+origin=https://www.qso.mizuki.top
 http_status=500
 server: ESA
 content-type: application/json; charset=utf-8
