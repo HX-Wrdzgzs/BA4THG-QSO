@@ -68,6 +68,7 @@ export async function onRequestGet(c){
       status:live.status,
       captchaRequired:Boolean(live.captchaRequired),
       captchaId:String(live.captchaId||''),
+      diagnostic:live.diagnostic||null,
       archived:null
     };
 
@@ -82,6 +83,19 @@ export async function onRequestGet(c){
 
   try{
     const archive=await readArchive(c.env.DB,call,q,page,limit);
+    if(refresh&&!upstream.ok&&archive.total===0){
+      return publicError('实时数据源暂不可用，本站长期档案中也没有匹配记录',502,{
+        station:call,
+        search:q,
+        page,
+        limit,
+        total:0,
+        items:[],
+        source:'本站长期档案',
+        upstream
+      });
+    }
+
     const accepted=Number(upstream.archived?.fetched||0)-Number(upstream.archived?.rejected||0);
     const total=Math.max(archive.total,upstream.ok&&accepted>0?Number(upstream.total||0):0);
     return json({
@@ -92,6 +106,7 @@ export async function onRequestGet(c){
       total,
       items:archive.items,
       source:upstream.ok?'本站长期档案（已尝试实时刷新并归档）':'本站长期档案',
+      stale:Boolean(refresh&&!upstream.ok),
       upstream
     },{headers:{...corsHeaders,'cache-control':'no-store'}});
   }catch(e){
