@@ -72,16 +72,11 @@ export async function onRequestGet(c){
     };
 
     if(live.ok){
-      const station=normalizeCallsign(live.data?.station||call);
-      if(station&&station!==call){
-        upstream.ok=false;
-        upstream.status=409;
-        upstream.error=`上游返回台站 ${station}，与本站 ${call} 不一致`;
-      }else{
-        const items=Array.isArray(live.data?.items)?live.data.items:[];
-        upstream.total=Number(live.data?.total||0);
-        upstream.archived=await archiveUpstreamItems(c.env.DB,items,call,{expectedTheirCallsign:q,skipUnchanged:true});
-      }
+      // contact 查询的 station 字段语义由上游定义，不能据此拒绝整页；真正的写入边界在逐条 QSO 校验。
+      upstream.station=normalizeCallsign(live.data?.station||'');
+      const items=Array.isArray(live.data?.items)?live.data.items:[];
+      upstream.total=Number(live.data?.total||0);
+      upstream.archived=await archiveUpstreamItems(c.env.DB,items,call,{expectedTheirCallsign:q,skipUnchanged:true});
     }else upstream.error=live.error||'上游暂不可用';
   }
 
