@@ -14,23 +14,26 @@ permissions:
 jobs:
   smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
 
-      - name: Wait for Pages deployment and verify BA4VRM query
+      - name: Wait for Pages deployment and verify BA4VRM archive
         shell: bash
         run: |
           set -u
-          endpoint='https://qso.mizuki.top/api/public/qsos?q=BA4VRM&page=1&limit=20'
+          pages_endpoint='https://ba4thg-qso.pages.dev/api/public/qsos?q=BA4VRM&page=1&limit=20'
+          custom_endpoint='https://qso.mizuki.top/api/public/qsos?q=BA4VRM&page=1&limit=20'
           result='.github/production-smoke-result.txt'
           body="$(mktemp)"
           headers="$(mktemp)"
           matched=0
+          status=0
 
-          for attempt in $(seq 1 24); do
+          for attempt in $(seq 1 18); do
+            : > "$headers"
             status="$(curl --silent --show-error --location --connect-timeout 10 --max-time 20 \
-              -H 'Accept: application/json' -D "$headers" -o "$body" -w '%{http_code}' "$endpoint" || true)"
+              -H 'Accept: application/json' -D "$headers" -o "$body" -w '%{http_code}' "$pages_endpoint" || true)"
 
             if python3 - "$body" <<'PY'
           import json, sys
@@ -38,8 +41,14 @@ jobs:
               data=json.load(open(sys.argv[1],encoding='utf-8'))
           except Exception:
               raise SystemExit(1)
-          # fallback 字段只存在于本次修订后的 API，用它确认 Pages 已经部署到目标版本。
-          raise SystemExit(0 if 'fallback' in data and data.get('search')=='BA4VRM' else 1)
+          ok=(
+              'fallback' in data and
+              data.get('station')=='BA4THG' and
+              data.get('search')=='BA4VRM' and
+              int(data.get('total') or 0)>=4 and
+              len(data.get('items') or [])>=4
+          )
+          raise SystemExit(0 if ok else 1)
           PY
             then
               matched=1
@@ -47,21 +56,21 @@ jobs:
             fi
 
             echo "waiting for target Pages deployment: attempt=$attempt status=$status"
-            sleep 15
+            sleep 10
           done
 
           {
             echo "checked_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-            echo "target_version_seen=$matched"
-            echo "http_status=${status:-0}"
-            grep -iE '^(content-type|server|cf-ray):' "$headers" || true
+            echo "pages_target_version_seen=$matched"
+            echo "pages_http_status=$status"
+            grep -iE '^(content-type|server|cf-ray|cf-mitigated):' "$headers" | sed 's/^/pages_/' || true
             python3 - "$body" <<'PY'
           import json, sys
           raw=open(sys.argv[1],'rb').read(131072)
           try:
               data=json.loads(raw.decode('utf-8','replace'))
           except Exception:
-              print('summary=' + raw.decode('utf-8','replace').strip().replace('\n',' ')[:500])
+              print('pages_summary=' + raw.decode('utf-8','replace').strip().replace('\n',' ')[:300])
           else:
               up=data.get('upstream') or {}
               fb=data.get('fallback') or {}
@@ -86,14 +95,22 @@ jobs:
                   'fallbackLinked':arc.get('linkedToExisting'),
                   'fallbackRejected':arc.get('rejected'),
               }
-              print('summary=' + json.dumps(safe,ensure_ascii=False))
+              print('pages_summary=' + json.dumps(safe,ensure_ascii=False))
           PY
+
+            custom_headers="$(mktemp)"
+            custom_body="$(mktemp)"
+            custom_status="$(curl --silent --show-error --location --connect-timeout 10 --max-time 20 \
+              -H 'Accept: application/json' -D "$custom_headers" -o "$custom_body" -w '%{http_code}' "$custom_endpoint" || true)"
+            echo "custom_http_status=$custom_status"
+            grep -iE '^(content-type|server|cf-ray|cf-mitigated):' "$custom_headers" | sed 's/^/custom_/' || true
+            rm -f "$custom_headers" "$custom_body"
           } > "$result"
 
           cat "$result"
           rm -f "$body" "$headers"
           test "$matched" = 1
-          test "${status:-0}" = 200
+          test "$status" = 200
 
       - name: Commit sanitized production result
         if: always()
