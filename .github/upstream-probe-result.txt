@@ -1,7 +1,31 @@
-checked_at=2026-08-19T10:33:25Z
-http_status=500
-headers:
+checked_at=2026-08-19T10:34:43Z
+
+[no-origin-valid-query]
+http_status=403
 server: ESA
 content-type: application/json; charset=utf-8
-summary:
-{"error": "Internal Server Error", "total": null, "page": null, "limit": null, "captchaRequired": null, "hasItems": false, "itemCount": 0}
+summary={"error": "请通过已登记的网站浏览器访问（需要 Origin）", "total": null, "page": null, "limit": null, "captchaRequired": null, "hasItems": false, "itemCount": 0}
+
+[registered-origin-ba4vrm-contact]
+http_status=500
+server: ESA
+content-type: application/json; charset=utf-8
+summary={"error": "Internal Server Error", "total": null, "page": null, "limit": null, "captchaRequired": null, "hasItems": false, "itemCount": 0}
+
+[registered-origin-no-match-contact]
+http_status=500
+server: ESA
+content-type: application/json; charset=utf-8
+summary={"error": "Internal Server Error", "total": null, "page": null, "limit": null, "captchaRequired": null, "hasItems": false, "itemCount": 0}
+
+[registered-origin-operator]
+http_status=500
+server: ESA
+content-type: application/json; charset=utf-8
+summary={"error": "Internal Server Error", "total": null, "page": null, "limit": null, "captchaRequired": null, "hasItems": false, "itemCount": 0}
+
+[registered-origin-invalid-callsign]
+http_status=500
+server: ESA
+content-type: application/json; charset=utf-8
+summary={"error": "Internal Server Error", "total": null, "page": null, "limit": null, "captchaRequired": null, "hasItems": false, "itemCount": 0}
