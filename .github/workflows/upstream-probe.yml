@@ -55,6 +55,8 @@ jobs:
           else:
               safe = {
                   'error': data.get('error'),
+                  'station': data.get('station'),
+                  'search': data.get('search'),
                   'total': data.get('total'),
                   'page': data.get('page'),
                   'limit': data.get('limit'),
@@ -69,11 +71,13 @@ jobs:
           }
 
           base='https://api.mzyyun.com/public/qso'
-          query="$base?callsign=BA4VRM&role=contact&page=1&limit=20"
-          probe 'no-origin-valid-query' '' "$query"
-          probe 'unregistered-origin-valid-query' 'https://example.com' "$query"
-          probe 'mzyyun-origin-valid-query' 'https://mzyyun.com' "$query"
-          probe 'qso-origin-ba4vrm-contact' 'https://qso.mizuki.top' "$query"
+          contact="$base?callsign=BA4VRM&role=contact&page=1&limit=20"
+          probe 'no-origin-valid-query' '' "$contact"
+          probe 'unregistered-origin-valid-query' 'https://example.com' "$contact"
+          probe 'mzyyun-origin-ba4vrm-contact' 'https://mzyyun.com' "$contact"
+          probe 'mzyyun-origin-ba4thg-operator' 'https://mzyyun.com' "$base?callsign=BA4THG&role=operator&page=1&limit=20"
+          probe 'mzyyun-origin-ba4vrm-operator' 'https://mzyyun.com' "$base?callsign=BA4VRM&role=operator&page=1&limit=20"
+          probe 'qso-origin-ba4vrm-contact' 'https://qso.mizuki.top' "$contact"
           probe 'qso-origin-no-match-contact' 'https://qso.mizuki.top' "$base?callsign=BG4ZZZ&role=contact&page=1&limit=20"
           probe 'qso-origin-operator' 'https://qso.mizuki.top' "$base?callsign=BA4THG&role=operator&page=1&limit=20"
           probe 'qso-origin-invalid-callsign' 'https://qso.mizuki.top' "$base?callsign=INVALID!&role=contact&page=1&limit=20"
@@ -89,5 +93,5 @@ jobs:
           if git diff --cached --quiet; then
             exit 0
           fi
-          git commit -m '记录上游 QSO API Origin 对照结果'
+          git commit -m '记录上游 QSO API 台站绑定结果'
           git push
