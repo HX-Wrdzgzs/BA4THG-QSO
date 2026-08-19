@@ -26,21 +26,22 @@ jobs:
 
           probe() {
             local name="$1"
-            local origin_mode="$2"
+            local origin="$2"
             local url="$3"
             local headers body status
             headers="$(mktemp)"
             body="$(mktemp)"
 
             args=(--silent --show-error --location --connect-timeout 10 --max-time 20 -H 'Accept: application/json')
-            if [[ "$origin_mode" == 'origin' ]]; then
-              args+=(-H 'Origin: https://qso.mizuki.top')
+            if [[ -n "$origin" ]]; then
+              args+=(-H "Origin: $origin")
             fi
 
             status="$(curl "${args[@]}" -D "$headers" -o "$body" -w '%{http_code}' "$url" || true)"
             {
               echo
               echo "[$name]"
+              echo "origin=${origin:-<none>}"
               echo "http_status=$status"
               grep -iE '^(content-type|server|cf-ray|x-request-id|x-powered-by):' "$headers" || true
               python3 - "$body" <<'PY'
@@ -68,11 +69,14 @@ jobs:
           }
 
           base='https://api.mzyyun.com/public/qso'
-          probe 'no-origin-valid-query' 'none' "$base?callsign=BA4VRM&role=contact&page=1&limit=20"
-          probe 'registered-origin-ba4vrm-contact' 'origin' "$base?callsign=BA4VRM&role=contact&page=1&limit=20"
-          probe 'registered-origin-no-match-contact' 'origin' "$base?callsign=BG4ZZZ&role=contact&page=1&limit=20"
-          probe 'registered-origin-operator' 'origin' "$base?callsign=BA4THG&role=operator&page=1&limit=20"
-          probe 'registered-origin-invalid-callsign' 'origin' "$base?callsign=INVALID!&role=contact&page=1&limit=20"
+          query="$base?callsign=BA4VRM&role=contact&page=1&limit=20"
+          probe 'no-origin-valid-query' '' "$query"
+          probe 'unregistered-origin-valid-query' 'https://example.com' "$query"
+          probe 'mzyyun-origin-valid-query' 'https://mzyyun.com' "$query"
+          probe 'qso-origin-ba4vrm-contact' 'https://qso.mizuki.top' "$query"
+          probe 'qso-origin-no-match-contact' 'https://qso.mizuki.top' "$base?callsign=BG4ZZZ&role=contact&page=1&limit=20"
+          probe 'qso-origin-operator' 'https://qso.mizuki.top' "$base?callsign=BA4THG&role=operator&page=1&limit=20"
+          probe 'qso-origin-invalid-callsign' 'https://qso.mizuki.top' "$base?callsign=INVALID!&role=contact&page=1&limit=20"
 
           cat "$result"
 
@@ -85,5 +89,5 @@ jobs:
           if git diff --cached --quiet; then
             exit 0
           fi
-          git commit -m '记录上游 QSO API 分层探针结果'
+          git commit -m '记录上游 QSO API Origin 对照结果'
           git push
