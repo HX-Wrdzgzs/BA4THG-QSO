@@ -41,6 +41,7 @@ Cloudflare D1
 - 公开页面：默认不显示任何 QSO，只允许按呼号主动查询
 - 管理页面：录入、修改、历史导入、近期同步和备份导出
 - 长期数据库：Cloudflare D1
+- Pages 默认域名：`https://ba4thg-qso.pages.dev`
 - 近期第三方数据源：`https://api.mzyyun.com/public/qso`
 - QSL 申请：`https://api.mzyyun.com/public/qsl-apply/*`
 - QSL 图片与卡面：继续放在独立的 `BA4THG-QSL` 仓库，不与本项目混合
@@ -53,23 +54,37 @@ Cloudflare D1
 GET /api/public/qsos?q=<CALLSIGN>&page=1&limit=20
 ```
 
-行为：
+当前可用入口：
+
+```text
+浏览器 / 正式站点：
+https://qso.mizuki.top/api/public/qsos?q=<CALLSIGN>&page=1&limit=20
+
+机器调用 / 自动验收：
+https://ba4thg-qso.pages.dev/api/public/qsos?q=<CALLSIGN>&page=1&limit=20
+```
+
+两者进入同一套 Pages Functions，并读取同一个 D1。当前 Cloudflare 自定义域名对部分非浏览器流量会触发 Managed Challenge；在对应 WAF / Bot 规则完成 API 路径豁免前，机器调用优先使用 `pages.dev` 入口。该豁免只应针对公开 API 路径，不应放宽 `/api/admin/*` 或 Cloudflare Access。
+
+API 行为：
 
 1. 外部 API 请求默认先尝试通过 `api.mzyyun.com/public/qso` 获取该呼号当前可公开查询的近期记录。
 2. 上游返回的记录必须同时满足“本台呼号为 `BA4THG`”和“对方呼号等于本次查询呼号”，通过校验后才会写入 D1。
-3. 写入使用上游记录 ID + QSO 指纹双重去重；已经在本站手工修改过的本地记录不会被上游覆盖。
-4. 完成刷新后再从 D1 返回结果，因此 API 返回的数据同时也是本站长期档案的一部分。
-5. `refresh=0` 可显式关闭实时刷新，只读取 D1。
-6. 响应中的 `upstream` 字段会给出本次是否尝试刷新、上游 HTTP 状态、是否要求验证码以及本次归档统计。
-7. GET/OPTIONS 支持 CORS。第一方页面本身已经直接调用第三方接口并处理图形验证，因此同源页面请求默认只读 D1，避免对上游重复请求。
+3. 写入使用上游记录 ID + QSO 指纹去重；已经在本站手工修改过的本地记录不会被上游覆盖。
+4. 直接上游数据优先级高于公开互证快照；互证快照只能补齐空缺，不能覆盖后续取得的直接记录。
+5. 完成刷新或补齐后再从 D1 返回结果，因此 API 返回的数据同时也是本站长期档案的一部分。
+6. `refresh=0` 可显式关闭实时刷新，只读取 D1；已内置的经验证一次性补齐数据仍可在 D1 为空时落库。
+7. 响应中的 `upstream` 字段给出本次是否尝试刷新、上游 HTTP 状态、验证码状态以及归档统计。
+8. `stale`、`complete`、`degraded`、`warning` 用于区分“实时上游成功”“仅返回长期档案”“使用降级补齐”等状态；上游异常而 D1 可读时不再伪装成“确定无记录”，也不再仅因为上游失败返回 502。
+9. GET/OPTIONS 支持 CORS。第一方页面本身会直接调用第三方接口并处理图形验证，因此同源页面请求默认只读 D1，避免重复请求上游。
 
 示例：
 
 ```text
-https://qso.mizuki.top/api/public/qsos?q=BA4VRM&page=1&limit=20
+https://ba4thg-qso.pages.dev/api/public/qsos?q=BA4VRM&page=1&limit=20
 ```
 
-如果上游要求查询验证码，公共 API 会保留 `captchaRequired` / `captchaId` 状态，同时仍返回 D1 中已经归档的数据。管理页面的“同步近期记录”仍然是补齐全部近期记录的可靠入口。
+目前已通过生产验收确认：BA4VRM 的 4 条经验证互证记录已写入 D1，后续查询直接从长期档案返回，不会重复插入。
 
 ## 公开查询规则
 
@@ -101,8 +116,9 @@ QSL 申请资格、申请记录和寄出状态以第三方 QSL API 为准。本�
 3. 第三方同步通过来源编号建立映射，同时使用 QSO 指纹避免重复。
 4. 如果第三方记录已经被你在本站手工修改，则本站修改后的内容优先，后续同步不会覆盖它。
 5. 公共 API 成功取得指定呼号的第三方近期记录时，会先校验、归档，再从 D1 返回；公开页面仍可合并浏览器实时结果与 D1 已归档记录。
-6. 较早记录可以通过 ADIF、CSV、JSON 或手工方式补齐。
-7. 应定期把 JSON 与 ADIF 备份到 Cloudflare 账户之外。
+6. 经验证的公开互证记录只用于补齐明确缺失的记录，来源单独记录，不能覆盖直接上游或本地人工版本。
+7. 较早记录可以通过 ADIF、CSV、JSON 或手工方式补齐。
+8. 应定期把 JSON 与 ADIF 备份到 Cloudflare 账户之外。
 
 公开页面不提供全库浏览，也不提供按地点、设备、天线、频率或备注搜索。查询结果只针对访客输入的呼号与固定台站 `BA4THG` 的公开通联。
 
@@ -110,9 +126,23 @@ QSL 申请资格、申请记录和寄出状态以第三方 QSL API 为准。本�
 
 管理 Functions 使用 `jose` 验证 `Cf-Access-Jwt-Assertion` 的签名、issuer 和 Access Application Audience。部署时必须配置 `ACCESS_TEAM_DOMAIN` 与 `ACCESS_AUD`；配置缺失或 JWT 校验失败时管理接口统一返回 403。
 
-## 自动部署
+## 当前外部依赖状态
 
-Cloudflare Pages 已连接 GitHub 的 `main` 分支并启用自动部署。以后只要向 `main` 提交修改，Cloudflare Pages 会自动重新部署，不再使用额外的 GitHub Actions 部署挂钩。
+当前代码、D1 和 Pages 默认域名均已通过自动测试；仍有两个不属于仓库代码本身的外部配置项：
+
+1. `api.mzyyun.com` 对 `Origin: https://qso.mizuki.top` 当前返回 HTTP 500，而其文档约定未登记 Origin 应返回 403。需要在第三方小程序“设置 → 网站接入”确认该 Origin 正确绑定到 BA4THG，并由上游修复未绑定 Origin 的 500 错误路径。
+2. `qso.mizuki.top` 对 GitHub Actions 等非浏览器请求当前返回 Cloudflare `cf-mitigated: challenge`；`ba4thg-qso.pages.dev` 同一 API 返回 200。需要在 Cloudflare WAF / Bot 配置中只对公开 API 路径调整挑战规则。
+
+这两个问题都不会删除已经写入 D1 的长期档案；上游恢复后，直接记录会按来源优先级更新外部管理的归档记录。
+
+## 自动部署与测试
+
+Cloudflare Pages 已连接 GitHub 的 `main` 分支并启用自动部署。以后只要向 `main` 提交修改，Cloudflare Pages 会自动重新部署。
+
+仓库同时保留两类自动验收：
+
+- `QSO Functions tests`：运行 Node 回归测试。
+- `Production QSO smoke`：通过 Pages 默认域名验证生产 Functions 和 D1，并单独记录自定义域名的 Cloudflare 挑战状态。
 
 ## 文档
 
